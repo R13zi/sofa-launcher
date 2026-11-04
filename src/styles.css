@@ -1,0 +1,108 @@
+/* Layout para TV: unidades relativas à altura da tela e margem contra overscan. */
+:root {
+  --bg: #10131f;
+  --panel: #1b2033;
+  --panel-2: #262c44;
+  --text: #f2f4fb;
+  --muted: #a4abc4;
+  --accent: #5ea0ff;
+  --danger: #ff6b6b;
+  --safe: 4vh;
+  font-size: 2.2vh;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  color-scheme: dark;
+}
+
+/* A janela do modo desktop é uma faixa da tela, então `vh` daria textos minúsculos. */
+:root.overlay-window { font-size: 24px; --safe: 6px; }
+:root.overlay-window .hints { padding-top: 0; justify-content: center; }
+:root.overlay-window .kb-panel { padding: 0.5rem 1rem; border-radius: 0; }
+
+* { box-sizing: border-box; }
+
+html, body, #app { height: 100%; margin: 0; overflow: hidden; background: var(--bg); }
+body { cursor: none; user-select: none; }
+
+.layer { position: fixed; inset: 0; display: flex; flex-direction: column; padding: var(--safe) calc(var(--safe) * 1.5); background: var(--bg); }
+.layer.overlay { background: rgba(6, 8, 16, 0.78); align-items: center; justify-content: center; }
+
+h1 { font-size: 2rem; margin: 0; font-weight: 600; }
+h2 { font-size: 1.3rem; margin: 0 0 0.6rem; font-weight: 600; color: var(--muted); }
+
+button {
+  font: inherit;
+  color: inherit;
+  background: var(--panel);
+  border: 0.18rem solid transparent;
+  border-radius: 0.6rem;
+  padding: 0.6rem 1.1rem;
+  outline: none;
+  cursor: none;
+  transition: transform 0.08s ease-out, background 0.08s ease-out;
+}
+button:focus { border-color: var(--accent); background: var(--panel-2); transform: scale(1.03); }
+button:disabled { opacity: 0.4; }
+button.danger:focus { border-color: var(--danger); }
+
+.top-bar { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; flex: none; }
+.top-bar .spacer { flex: 1; }
+.scroll { flex: 1; min-height: 0; overflow: hidden auto; padding: 0.5rem; scrollbar-width: none; }
+
+.hints { flex: none; display: flex; justify-content: flex-end; gap: 1.6rem; padding-top: 0.8rem; color: var(--muted); font-size: 0.95rem; }
+.hint { display: flex; align-items: center; gap: 0.45rem; }
+.glyph { display: inline-flex; align-items: center; justify-content: center; min-width: 1.6rem; height: 1.6rem; padding: 0 0.35rem; border-radius: 0.8rem; background: var(--panel-2); color: var(--text); font-weight: 700; font-size: 0.85rem; }
+
+/* Grade de jogos */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: 1.2rem; }
+.card { padding: 0; aspect-ratio: 2 / 3; overflow: hidden; position: relative; display: flex; flex-direction: column; justify-content: flex-end; width: 100%; }
+.card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.card .name { position: relative; padding: 0.6rem; font-size: 1rem; text-align: left; background: linear-gradient(transparent, rgba(0, 0, 0, 0.85)); }
+.card.no-art .name { background: none; height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 1.15rem; }
+.card .badge { position: absolute; top: 0.4rem; right: 0.4rem; background: rgba(0, 0, 0, 0.7); border-radius: 0.4rem; padding: 0.1rem 0.45rem; font-size: 0.75rem; }
+
+.row { display: flex; gap: 1.2rem; overflow: hidden; padding: 0.5rem; }
+.row .card { flex: none; width: 12rem; }
+
+.tabs { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.tab { padding: 0.35rem 0.9rem; border-radius: 0.5rem; color: var(--muted); }
+.tab.current { background: var(--accent); color: #08101f; font-weight: 600; }
+
+.list { display: flex; flex-direction: column; gap: 0.5rem; }
+.list button { text-align: left; width: 100%; display: flex; justify-content: space-between; gap: 1rem; }
+.list .detail { color: var(--muted); font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.dialog { background: var(--panel); border-radius: 1rem; padding: 1.6rem; min-width: 40vw; max-width: 70vw; max-height: 85vh; display: flex; flex-direction: column; gap: 1rem; }
+.dialog .actions { display: flex; flex-direction: column; gap: 0.5rem; min-height: 0; overflow: hidden auto; padding: 0.3rem; scrollbar-width: none; }
+.dialog .actions button { width: 100%; }
+.muted { color: var(--muted); white-space: pre-line; overflow-wrap: anywhere; }
+.error { color: var(--danger); }
+
+/* Tela de início e fundo do jogo */
+.session-screen { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.2rem; text-align: center; }
+.session-art { height: 50vh; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 0.8rem; }
+.session-spinner { width: 2.4rem; height: 2.4rem; border-radius: 50%; border: 0.3rem solid var(--panel-2); border-top-color: var(--accent); animation: session-spin 1s linear infinite; }
+@keyframes session-spin { to { transform: rotate(360deg); } }
+
+/* Importação */
+.progress-track { width: 70%; height: 1.2rem; border-radius: 0.6rem; background: var(--panel-2); overflow: hidden; }
+.progress-fill { height: 100%; background: var(--accent); transition: width 0.2s linear; }
+
+/* Teclado virtual */
+.kb-panel { width: min(90vw, 70rem); background: var(--panel); border-radius: 1rem; padding: 1.2rem; display: flex; flex-direction: column; gap: 0.8rem; }
+.kb-text { background: #0b0e18; border-radius: 0.5rem; padding: 0.7rem 1rem; font-size: 1.3rem; min-height: 3rem; overflow: hidden; white-space: pre; display: flex; justify-content: flex-start; }
+.kb-text.right { justify-content: flex-end; }
+.kb-cursor { border-left: 0.12rem solid var(--accent); margin-left: 0.05rem; }
+.kb-rows { display: flex; flex-direction: column; gap: 0.4rem; }
+.kb-row { display: flex; justify-content: center; gap: 0.4rem; }
+.kb-row button { flex: 1 1 0; min-width: 0; padding: 0.55rem 0; text-align: center; font-size: 1.15rem; }
+.kb-row button.wide { flex-grow: 2.2; font-size: 0.95rem; }
+.kb-row button.space { flex-grow: 5; }
+.kb-row button.on { background: var(--accent); color: #08101f; }
+
+.detail-page { display: flex; gap: 2rem; flex: 1; min-height: 0; }
+.detail-page .cover { height: 60vh; aspect-ratio: 2 / 3; border-radius: 0.8rem; overflow: hidden; background: var(--panel); display: flex; align-items: center; justify-content: center; text-align: center; padding: 0; flex: none; }
+.detail-page .cover img { width: 100%; height: 100%; object-fit: cover; }
+.detail-page .side { flex: 1; display: flex; flex-direction: column; gap: 0.7rem; max-width: 32rem; }
+.detail-page .side button { width: 100%; text-align: left; }
