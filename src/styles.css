@@ -28,6 +28,11 @@
 html, body, #app { height: 100%; margin: 0; overflow: hidden; background: var(--bg); }
 body { cursor: none; user-select: none; }
 
+/* Modo mouse: o cursor só aparece quando o mouse está em uso. */
+:root.cursor-visible body { cursor: default; }
+:root.cursor-visible button:not(:disabled), :root.cursor-visible .hint, :root.cursor-visible .tab { cursor: pointer; }
+:root.cursor-visible .hint:hover, :root.cursor-visible .tab:hover { color: var(--text); }
+
 .layer { position: fixed; inset: 0; display: flex; flex-direction: column; padding: var(--safe) calc(var(--safe) * 1.5); background: var(--bg); }
 .layer.overlay { background: rgba(12, 10, 9, 0.72); align-items: center; justify-content: center; }
 
@@ -43,7 +48,8 @@ button {
   border-radius: 0.5rem;
   padding: 0.6rem 1.15rem;
   outline: none;
-  cursor: none;
+  cursor: inherit;
+  transition: background-color 0.12s ease-out, border-color 0.12s ease-out, color 0.12s ease-out;
 }
 /* O item em foco fica preenchido: é o que mais se destaca a alguns metros da TV. */
 button:focus { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
@@ -62,8 +68,8 @@ button.danger:focus { background: var(--danger); border-color: var(--danger); }
 
 /* Arte grande, compartilhada pelas telas */
 .hero-art { position: absolute; top: 0; right: 0; width: var(--art-width); height: 100%; overflow: hidden; background: var(--panel-2); }
-.hero-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
-/* Sem arte grande, a capa ampliada ocupa o espaço. */
+.hero-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Sem banner, a capa ampliada ocupa o espaço. */
 .hero-art img.from-cover { filter: blur(1.6rem); transform: scale(1.15); opacity: 0.55; }
 
 /* Tela inicial */
@@ -76,6 +82,7 @@ button.danger:focus { background: var(--danger); border-color: var(--danger); }
 .tab.current { color: var(--text); font-weight: 600; border-bottom-color: var(--accent); }
 .home-search { margin-left: auto; padding: 0.2rem 0.7rem; border-radius: 0.4rem; background: var(--bg); color: var(--text); }
 .home-info { position: absolute; left: var(--gutter); top: 19.4vh; width: 36vw; display: flex; flex-direction: column; gap: 0.8rem; }
+.home-text { display: flex; flex-direction: column; gap: 0.8rem; }
 .home-eyebrow { color: var(--muted); font-size: 0.97rem; }
 .home-title { margin: 0; font-size: 4.4rem; line-height: 1.02; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .home-title.long { font-size: 2.9rem; }
@@ -88,7 +95,7 @@ button.danger:focus { background: var(--danger); border-color: var(--danger); }
 .home .hints { position: absolute; right: var(--gutter); bottom: 2.2vh; padding: 0; }
 
 /* Cartão de jogo */
-.card { flex: none; height: 25.7vh; aspect-ratio: 196 / 278; padding: 0; overflow: hidden; position: relative; display: flex; flex-direction: column; justify-content: flex-end; background: var(--panel-2); border-width: 0.22rem; transition: transform 0.08s ease-out; }
+.card { flex: none; height: 25.7vh; aspect-ratio: 196 / 278; padding: 0; overflow: hidden; position: relative; display: flex; flex-direction: column; justify-content: flex-end; background: var(--panel-2); border-width: 0.22rem; transition: transform 0.14s ease-out, border-color 0.12s ease-out; }
 .card:focus { background: var(--panel-2); color: var(--text); transform: scale(1.05); }
 .card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .card .name { position: relative; padding: 0.5rem; font-size: 0.93rem; text-align: left; background: rgba(12, 10, 9, 0.78); }
@@ -153,3 +160,36 @@ button.danger:focus { background: var(--danger); border-color: var(--danger); }
 .kb-row button.space { flex-grow: 5; }
 .kb-row button.on { background: var(--panel-2); border-color: var(--accent); }
 .kb-row button.on:focus { background: var(--accent); }
+/* Com o teclado físico, só o título e o campo. */
+.kb-panel.anchored.compact { height: auto; }
+.kb-input { color: var(--text); border: 0.18rem solid var(--accent); font-family: inherit; outline: none; user-select: text; cursor: text; }
+
+/* Transições: só opacidade e movimento, leves na placa integrada, e nunca bloqueiam o controle. */
+.layer:not(.overlay) { animation: layer-in 0.22s ease-out; }
+.layer.overlay { animation: fade-in 0.18s ease-out; }
+.layer.leaving { animation: layer-out 0.18s ease-in forwards; pointer-events: none; }
+.dialog { animation: dialog-in 0.2s ease-out; }
+.dialog.side { animation: panel-in 0.22s ease-out; }
+.kb-panel.anchored { animation: kb-in 0.22s ease-out; }
+.leaving .dialog { animation: dialog-out 0.18s ease-in forwards; }
+.leaving .dialog.side { animation: panel-out 0.18s ease-in forwards; }
+.leaving .kb-panel.anchored { animation: kb-out 0.18s ease-in forwards; }
+.home-text { animation: text-in 0.24s ease-out; }
+.home-row { animation: fade-in 0.2s ease-out; }
+.hero-current { animation: fade-in 0.35s ease-out; }
+.session-full { animation: fade-in 0.28s ease-out; }
+
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes layer-in { from { opacity: 0; transform: translateY(1.2vh); } to { opacity: 1; transform: none; } }
+@keyframes layer-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes dialog-in { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes dialog-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(0.97); } }
+@keyframes panel-in { from { transform: translateX(100%); } to { transform: none; } }
+@keyframes panel-out { from { transform: none; } to { transform: translateX(100%); } }
+@keyframes kb-in { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes kb-out { from { transform: none; } to { transform: translateY(100%); } }
+@keyframes text-in { from { opacity: 0; transform: translateX(-0.8vw); } to { opacity: 1; transform: none; } }
+
+:root.no-anim *, :root.no-anim *::before, :root.no-anim *::after { animation: none !important; transition: none !important; }
+/* A barra de "Iniciando" indica atividade e continua em movimento mesmo sem as transições. */
+:root.no-anim .session-bar span { animation: session-slide 1.4s ease-in-out infinite alternate !important; }

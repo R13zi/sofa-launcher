@@ -10,7 +10,7 @@ const games = [
   ["emu:dolphin:ww", "Wind Waker", "dolphin"],
   ["manual:dusklight", "Dusklight", "manual"],
 ].map(([id, title, source], i) => ({
-  id, title, source, art: null, hero: null, favorite: i === 0, hidden: false,
+  id, title, source, art: null, hero: null as string | null, custom_hero: null as string | null, favorite: i === 0, hidden: false,
   last_played: i < 3 ? 1000 - i : 0, playtime_secs: i === 0 ? 5400 : 0, launch_file: null as string | null,
 }));
 
@@ -78,6 +78,15 @@ export function mockInvoke(command: string, args: Record<string, unknown>): unkn
       return null;
     }
     case "session_cancel": case "session_close": setSession(null); return null;
+    case "reduce_animations_get": return false;
+    case "set_hero": {
+      const game = games.find((g) => g.id === args.id);
+      if (game) {
+        game.custom_hero = (args.path as string | null) ?? null;
+        game.hero = game.custom_hero;
+      }
+      return null;
+    }
     case "set_launch_file": {
       const game = games.find((g) => g.id === args.id);
       if (game) game.launch_file = (args.path as string | null) ?? null;

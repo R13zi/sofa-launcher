@@ -3,6 +3,7 @@ import { artUrl, call, formatPlaytime, GameView, on, sourceLabel } from "../api"
 import { showError } from "../components/Dialog";
 import { HeroArt } from "../components/HeroArt";
 import { Hints } from "../components/Hints";
+import { isCursorVisible } from "../input";
 import { openKeyboard } from "../components/VirtualKeyboard";
 import { afterRender, focusFirst, moveFocus, nav, useActions } from "../nav";
 import { GameDetail } from "./GameDetail";
@@ -18,6 +19,9 @@ function GameCard({ game, autofocus, onSelect }: { game: GameView; autofocus?: b
       data-autofocus={autofocus ? "" : undefined}
       data-game-id={game.id}
       onFocus={onSelect}
+      onMouseEnter={() => {
+        if (isCursorVisible()) onSelect();
+      }}
       onClick={() => nav.push(<GameDetail gameId={game.id} />)}
     >
       {src && <img src={src} alt="" loading="lazy" onError={() => setBroken(true)} />}
@@ -141,16 +145,28 @@ export function Home() {
       <div class="home-nav">
         <span class="display home-brand">Sofa</span>
         {tabs.map((t) => (
-          <span key={t.id} class={`tab ${t.id === activeTab && !searching ? "current" : ""}`}>{t.label}</span>
+          <span
+            key={t.id}
+            class={`tab ${t.id === activeTab && !searching ? "current" : ""}`}
+            onClick={() => {
+              setQuery("");
+              setTab(t.id);
+            }}
+          >
+            {t.label}
+          </span>
         ))}
         {searching && <span class="home-search">Busca: “{query}” · {filtered.length} resultado(s)</span>}
       </div>
 
       {selected && (
         <div class="home-info">
-          <span class="home-eyebrow">{selected.last_played > 0 ? "Continuar jogando" : sourceLabel(selected.source)}</span>
-          <h1 class={titleClass(selected.title)}>{selected.title}</h1>
-          <span class="home-meta">{sourceLabel(selected.source)} · {formatPlaytime(selected.playtime_secs)}</span>
+          {/* A chave reinicia a animação ao trocar de jogo; os botões ficam de fora para manter o foco. */}
+          <div class="home-text" key={selected.id}>
+            <span class="home-eyebrow">{selected.last_played > 0 ? "Continuar jogando" : sourceLabel(selected.source)}</span>
+            <h1 class={titleClass(selected.title)}>{selected.title}</h1>
+            <span class="home-meta">{sourceLabel(selected.source)} · {formatPlaytime(selected.playtime_secs)}</span>
+          </div>
           <div class="home-actions">
             <button class="primary" onClick={() => call("launch_game", { id: selected.id }).catch(showError)}>Jogar</button>
             <button onClick={() => nav.push(<GameDetail gameId={selected.id} />)}>Detalhes</button>
@@ -158,7 +174,13 @@ export function Home() {
         </div>
       )}
 
-      <div class="home-row">
+      <div
+        class="home-row"
+        key={activeTab}
+        onWheel={(e) => {
+          e.currentTarget.scrollLeft += e.deltaY;
+        }}
+      >
         {row.map((g, i) => (
           <GameCard key={g.id} game={g} autofocus={i === 0} onSelect={() => setSelectedId(g.id)} />
         ))}

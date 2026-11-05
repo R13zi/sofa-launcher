@@ -414,7 +414,7 @@ fn plan_covers(dir: &Path, library: &Path) -> Vec<ImportItem> {
     let mut items = vec![];
     for (name, path, kind) in entries_of(dir) {
         if kind.is_dir() {
-            if art::best_cover_in(&path).is_some() {
+            if art::best_cover_in(&path).is_some() || art::best_banner_in(&path).is_some() {
                 items.push(dir_item(art::COVERS_DIR, &name, name.clone(), &path, library));
             } else {
                 items.push(blocked(art::COVERS_DIR, &name, name.clone(), "Nenhuma imagem .jpg, .png ou .webp nesta pasta.".into()));
@@ -1257,6 +1257,37 @@ mod tests {
         let again = plan_import(&dump.0, &store, &library.0);
         assert_eq!(item(&again, "Dusklight").status, Status::Done);
         assert_eq!(item(&again, "Batman Arkham Origins").status, Status::Done);
+    }
+
+    #[test]
+    fn banner_entra_em_pasta_ja_importada_copiando_so_ele() {
+        let dump = Temp::new("dump");
+        let library = Temp::new("lib");
+        dump.write("capas/Dusklight/capa.png", b"capa");
+        let mut store = Store::default();
+        let items = plan_import(&dump.0, &store, &library.0);
+        import(item(&items, "Dusklight"), &mut store, None);
+        assert_eq!(item(&plan_import(&dump.0, &store, &library.0), "Dusklight").status, Status::Done);
+
+        dump.write("capas/Dusklight/banner.png", b"banner");
+        let again = plan_import(&dump.0, &store, &library.0);
+        let dusklight = item(&again, "Dusklight");
+        assert_eq!(dusklight.status, Status::New);
+        assert_eq!(dusklight.pending_bytes, 6);
+        let mut copied = 0;
+        copy_item(dusklight, &no_cancel(), &mut |b| copied += b).unwrap();
+        assert_eq!(copied, 6, "só o banner é copiado");
+        let banners = art::imported_banners(&library.0);
+        assert!(art::local_hero("manual:x", "Dusklight", &banners).unwrap().ends_with("banner.png"));
+    }
+
+    #[test]
+    fn pasta_so_com_banner_pode_ser_importada() {
+        let dump = Temp::new("dump");
+        let library = Temp::new("lib");
+        dump.write("capas/Half-Life/banner.jpg", b"b");
+        let items = plan_import(&dump.0, &Store::default(), &library.0);
+        assert_eq!(item(&items, "Half-Life").status, Status::New);
     }
 
     #[test]

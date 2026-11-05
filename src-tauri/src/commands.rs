@@ -31,8 +31,14 @@ pub fn rescan(state: &AppState) {
 #[tauri::command]
 pub fn library_list(state: St) -> Vec<GameView> {
     let store = state.store.lock().unwrap();
-    let covers = art::imported_covers(Path::new(&store.library_dir()));
-    state.games.lock().unwrap().iter().map(|g| store.view(g, art::local_cover(&g.id, &g.title, &covers))).collect()
+    let local = art::LocalArt::load(Path::new(&store.library_dir()));
+    state
+        .games
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|g| store.view(g, local.cover(&g.id, &g.title), local.hero(&g.id, &g.title)))
+        .collect()
 }
 
 #[tauri::command(async)]
@@ -53,6 +59,23 @@ pub fn set_hidden(state: St, id: String, value: bool) -> Result<(), String> {
 #[tauri::command]
 pub fn set_art(state: St, id: String, path: Option<String>) -> Result<(), String> {
     with_meta(&state, &id, |m| m.art = path)
+}
+
+#[tauri::command]
+pub fn set_hero(state: St, id: String, path: Option<String>) -> Result<(), String> {
+    with_meta(&state, &id, |m| m.hero = path)
+}
+
+#[tauri::command]
+pub fn reduce_animations_get(state: St) -> bool {
+    state.store.lock().unwrap().reduce_animations
+}
+
+#[tauri::command]
+pub fn reduce_animations_set(state: St, value: bool) -> Result<(), String> {
+    let mut store = state.store.lock().unwrap();
+    store.reduce_animations = value;
+    store.save().map_err(|e| e.to_string())
 }
 
 #[tauri::command]

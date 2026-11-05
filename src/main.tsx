@@ -6,7 +6,7 @@ import { useEffect, useState } from "preact/hooks";
 import { call, on, SessionInfo } from "./api";
 import { showError } from "./components/Dialog";
 import { startInput } from "./input";
-import { nav, NavRoot } from "./nav";
+import { nav, NavRoot, setAnimationsEnabled } from "./nav";
 import { DesktopOverlay } from "./screens/DesktopOverlay";
 import { GameSession } from "./screens/GameSession";
 import { Home } from "./screens/Home";
@@ -36,9 +36,10 @@ function Root() {
 function App() {
   useEffect(() => {
     if (isOverlay) {
-      void startInput(() => {});
+      void startInput(() => {}, false);
       return;
     }
+    void call<boolean>("reduce_animations_get").then((reduce) => setAnimationsEnabled(!reduce));
     void startInput(async () => {
       // Enquanto o jogo abre, a tela só oferece cancelar.
       const session = await call<SessionInfo | null>("session_info");

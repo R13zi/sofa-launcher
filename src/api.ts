@@ -8,6 +8,7 @@ export interface GameView {
   source: string;
   art: string | null;
   hero: string | null;
+  custom_hero: string | null;
   favorite: boolean;
   hidden: boolean;
   last_played: number;

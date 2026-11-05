@@ -13,6 +13,8 @@ pub struct Meta {
     pub last_played: u64,
     pub playtime_secs: u64,
     pub art: Option<String>,
+    /// Banner escolhido nos detalhes do jogo.
+    pub hero: Option<String>,
     /// Arquivo passado ao jogo ao iniciar, como a ISO de um decomp.
     pub launch_file: Option<String>,
 }
@@ -23,6 +25,8 @@ pub struct Store {
     pub initialized: bool,
     /// O início automático já foi ligado uma vez; a partir daí vale a escolha do usuário.
     pub autostart_defaulted: bool,
+    /// Desliga as transições entre telas.
+    pub reduce_animations: bool,
     /// Para onde os jogos importados são copiados. Vazio usa o padrão.
     pub library_dir: Option<String>,
     pub swap_confirm: bool,
@@ -38,6 +42,8 @@ pub struct GameView {
     pub source: String,
     pub art: Option<String>,
     pub hero: Option<String>,
+    /// O banner escolhido nos detalhes, para oferecer "Remover" só quando houver um.
+    pub custom_hero: Option<String>,
     pub favorite: bool,
     pub hidden: bool,
     pub last_played: u64,
@@ -112,14 +118,16 @@ impl Store {
         }
     }
 
-    pub fn view(&self, game: &Game, cached_art: Option<String>) -> GameView {
+    /// Banner: o escolhido, depois o importado ou baixado (`local_hero`), depois o da Steam.
+    pub fn view(&self, game: &Game, cached_art: Option<String>, local_hero: Option<String>) -> GameView {
         let meta = self.meta.get(&game.id).cloned().unwrap_or_default();
         GameView {
             id: game.id.clone(),
             title: game.title.clone(),
             source: game.source.clone(),
             art: meta.art.or(cached_art).or_else(|| game.art.clone()),
-            hero: game.hero.clone(),
+            hero: meta.hero.or(local_hero).or_else(|| game.hero.clone()),
+            custom_hero: self.meta.get(&game.id).and_then(|m| m.hero.clone()),
             favorite: meta.favorite,
             hidden: meta.hidden,
             last_played: meta.last_played,
@@ -215,6 +223,31 @@ mod tests {
         for game in scan_all(&store) {
             println!("[{}] {} | capa: {} | {:?}", game.source, game.title, game.art.is_some(), game.launch);
         }
+    }
+
+    #[test]
+    fn prioridade_do_banner() {
+        let game = Game {
+            id: "steam:70".into(),
+            title: "Half-Life".into(),
+            source: "steam".into(),
+            launch: crate::providers::Launch::Uri { uri: String::new(), watch_dir: String::new() },
+            art: Some("capa-steam.jpg".into()),
+            hero: Some("steam.jpg".into()),
+        };
+        let mut store = Store::default();
+        assert_eq!(store.view(&game, None, None).hero.as_deref(), Some("steam.jpg"));
+        assert_eq!(store.view(&game, None, Some("local.png".into())).hero.as_deref(), Some("local.png"));
+        store.meta.insert(game.id.clone(), Meta { hero: Some("meu.png".into()), ..Default::default() });
+        let view = store.view(&game, None, Some("local.png".into()));
+        assert_eq!(view.hero.as_deref(), Some("meu.png"));
+        assert_eq!(view.custom_hero.as_deref(), Some("meu.png"));
+
+        let sem_banner = Game { hero: None, ..game };
+        let store = Store::default();
+        let view = store.view(&sem_banner, None, None);
+        assert_eq!(view.hero, None, "sem banner, a interface usa a capa desfocada");
+        assert_eq!(view.art.as_deref(), Some("capa-steam.jpg"));
     }
 
     #[test]

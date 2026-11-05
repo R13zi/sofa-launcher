@@ -31,6 +31,18 @@ pub fn cached(game_id: &str) -> Option<String> {
     ["jpg", "png", "webp"].iter().map(|ext| art_dir().join(format!("{stem}.{ext}"))).find(|p| p.exists()).map(|p| p.to_string_lossy().into_owned())
 }
 
+const HERO_SUFFIX: &str = "-hero";
+
+/// Banner baixado: fica ao lado da capa, com outro nome.
+pub fn cached_hero(game_id: &str) -> Option<String> {
+    let stem = file_stem(game_id);
+    ["jpg", "png", "webp"]
+        .iter()
+        .map(|ext| art_dir().join(format!("{stem}{HERO_SUFFIX}.{ext}")))
+        .find(|p| p.exists())
+        .map(|p| p.to_string_lossy().into_owned())
+}
+
 /// Pasta da biblioteca com as capas importadas de `sofa\dump\capas`.
 pub const COVERS_DIR: &str = "capas";
 
@@ -59,8 +71,7 @@ pub fn cover_key(title: &str) -> String {
         .collect()
 }
 
-/// Escolhe a imagem de uma pasta: a chamada capa ou cover, senão a primeira em ordem alfabética.
-pub fn best_cover_in(dir: &Path) -> Option<PathBuf> {
+fn images_in(dir: &Path) -> Vec<PathBuf> {
     fn collect(dir: &Path, out: &mut Vec<PathBuf>) {
         let Ok(entries) = std::fs::read_dir(dir) else { return };
         for entry in entries.flatten() {
@@ -78,14 +89,30 @@ pub fn best_cover_in(dir: &Path) -> Option<PathBuf> {
     let mut images = vec![];
     collect(dir, &mut images);
     images.sort();
-    let preferred = images.iter().position(|p| {
-        let name = p.file_stem().map(|s| s.to_string_lossy().to_lowercase()).unwrap_or_default();
-        name == "capa" || name == "cover"
-    });
-    match preferred {
+    images
+}
+
+fn stem_is(path: &Path, names: &[&str]) -> bool {
+    let stem = path.file_stem().map(|s| s.to_string_lossy().to_lowercase()).unwrap_or_default();
+    names.contains(&stem.as_str())
+}
+
+const BANNER_NAMES: &[&str] = &["banner", "hero"];
+const COVER_NAMES: &[&str] = &["capa", "cover"];
+
+/// Escolhe a capa de uma pasta: a chamada capa ou cover, senão a primeira em ordem alfabética.
+/// Um banner nunca vira capa, nem sozinho na pasta.
+pub fn best_cover_in(dir: &Path) -> Option<PathBuf> {
+    let mut images: Vec<PathBuf> = images_in(dir).into_iter().filter(|p| !stem_is(p, BANNER_NAMES)).collect();
+    match images.iter().position(|p| stem_is(p, COVER_NAMES)) {
         Some(index) => Some(images.swap_remove(index)),
         None => images.into_iter().next(),
     }
+}
+
+/// O banner de uma pasta: só a imagem chamada banner ou hero.
+pub fn best_banner_in(dir: &Path) -> Option<PathBuf> {
+    images_in(dir).into_iter().find(|p| stem_is(p, BANNER_NAMES))
 }
 
 /// Capas de `<biblioteca>\capas`, pela chave do nome. Só lê essa pasta.
@@ -113,9 +140,49 @@ pub fn imported_covers(library: &Path) -> HashMap<String, String> {
     covers
 }
 
+/// Banners de `<biblioteca>\capas\<jogo>`, pela chave do nome da pasta.
+pub fn imported_banners(library: &Path) -> HashMap<String, String> {
+    let mut banners = HashMap::new();
+    let Ok(entries) = std::fs::read_dir(library.join(COVERS_DIR)) else { return banners };
+    for entry in entries.flatten() {
+        let Ok(kind) = entry.file_type() else { continue };
+        if kind.is_symlink() || !kind.is_dir() {
+            continue;
+        }
+        let key = cover_key(&entry.file_name().to_string_lossy());
+        if let (false, Some(image)) = (key.is_empty(), best_banner_in(&entry.path())) {
+            banners.insert(key, image.to_string_lossy().into_owned());
+        }
+    }
+    banners
+}
+
 /// Capa local do jogo: a importada por nome ou a baixada do SteamGridDB.
 pub fn local_cover(game_id: &str, title: &str, covers: &HashMap<String, String>) -> Option<String> {
     covers.get(&cover_key(title)).cloned().or_else(|| cached(game_id))
+}
+
+/// Banner local do jogo: o importado por nome ou o baixado do SteamGridDB.
+pub fn local_hero(game_id: &str, title: &str, banners: &HashMap<String, String>) -> Option<String> {
+    banners.get(&cover_key(title)).cloned().or_else(|| cached_hero(game_id))
+}
+
+/// Capas e banners locais de uma vez, para montar a visão de vários jogos.
+pub struct LocalArt {
+    covers: HashMap<String, String>,
+    banners: HashMap<String, String>,
+}
+
+impl LocalArt {
+    pub fn load(library: &Path) -> Self {
+        LocalArt { covers: imported_covers(library), banners: imported_banners(library) }
+    }
+    pub fn cover(&self, game_id: &str, title: &str) -> Option<String> {
+        local_cover(game_id, title, &self.covers)
+    }
+    pub fn hero(&self, game_id: &str, title: &str) -> Option<String> {
+        local_hero(game_id, title, &self.banners)
+    }
 }
 
 fn get_json(url: &str, key: &str) -> Result<serde_json::Value, String> {
@@ -141,11 +208,31 @@ fn percent_encode(text: &str) -> String {
         .collect()
 }
 
-fn find_url(game_id: &str, title: &str, key: &str) -> Result<Option<String>, String> {
-    const QUERY: &str = "dimensions=600x900,660x930";
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum ArtKind {
+    Cover,
+    Hero,
+}
+
+impl ArtKind {
+    /// Caminho da API. Capas pedem o formato vertical; banners vêm em qualquer tamanho.
+    fn path(self, platform: &str, id: &str) -> String {
+        match self {
+            ArtKind::Cover => format!("{API}/grids/{platform}/{id}?dimensions=600x900,660x930"),
+            ArtKind::Hero => format!("{API}/heroes/{platform}/{id}"),
+        }
+    }
+    fn file_suffix(self) -> &'static str {
+        match self {
+            ArtKind::Cover => "",
+            ArtKind::Hero => HERO_SUFFIX,
+        }
+    }
+}
+
+fn find_url(kind: ArtKind, game_id: &str, title: &str, key: &str) -> Result<Option<String>, String> {
     if let Some(appid) = game_id.strip_prefix("steam:") {
-        let doc = get_json(&format!("{API}/grids/steam/{appid}?{QUERY}"), key)?;
-        if let Some(url) = first_grid_url(&doc) {
+        if let Some(url) = first_grid_url(&get_json(&kind.path("steam", appid), key)?) {
             return Ok(Some(url));
         }
     }
@@ -153,10 +240,10 @@ fn find_url(game_id: &str, title: &str, key: &str) -> Result<Option<String>, Str
     let Some(id) = search["data"].as_array().and_then(|a| a.first()).and_then(|g| g["id"].as_u64()) else {
         return Ok(None);
     };
-    Ok(first_grid_url(&get_json(&format!("{API}/grids/game/{id}?{QUERY}"), key)?))
+    Ok(first_grid_url(&get_json(&kind.path("game", &id.to_string()), key)?))
 }
 
-fn download(url: &str, game_id: &str) -> Result<(), String> {
+fn download(url: &str, game_id: &str, kind: ArtKind) -> Result<(), String> {
     if !url.starts_with("https://") {
         return Err("URL de imagem insegura".into());
     }
@@ -166,7 +253,7 @@ fn download(url: &str, game_id: &str) -> Result<(), String> {
     let mut bytes = vec![];
     std::io::Read::read_to_end(&mut std::io::Read::take(response.into_reader(), MAX_IMAGE_BYTES), &mut bytes).map_err(|e| e.to_string())?;
     std::fs::create_dir_all(art_dir()).map_err(|e| e.to_string())?;
-    std::fs::write(art_dir().join(format!("{}.{ext}", file_stem(game_id))), bytes).map_err(|e| e.to_string())
+    std::fs::write(art_dir().join(format!("{}{}.{ext}", file_stem(game_id), kind.file_suffix())), bytes).map_err(|e| e.to_string())
 }
 
 #[derive(Serialize, Clone)]
@@ -178,30 +265,34 @@ struct ArtProgress {
     finished: bool,
 }
 
-/// Baixa em segundo plano as capas dos jogos que não têm nenhuma.
+/// Baixa em segundo plano as capas e os banners que faltam, cada um só se faltar.
 pub fn fetch_missing(app: AppHandle, state: Arc<AppState>) {
     std::thread::spawn(move || {
         let Some(key) = crate::credentials::load() else {
             let _ = app.emit("art-progress", ArtProgress { done: 0, total: 0, found: 0, error: Some("Nenhuma chave configurada.".into()), finished: true });
             return;
         };
-        let missing: Vec<(String, String)> = {
+        let missing: Vec<(String, String, ArtKind)> = {
             let store = state.store.lock().unwrap();
-            let covers = imported_covers(Path::new(&store.library_dir()));
-            state
-                .games
-                .lock()
-                .unwrap()
-                .iter()
-                .filter(|g| store.view(g, local_cover(&g.id, &g.title, &covers)).art.is_none())
-                .map(|g| (g.id.clone(), g.title.clone()))
-                .collect()
+            let local = LocalArt::load(Path::new(&store.library_dir()));
+            let games = state.games.lock().unwrap();
+            let mut list = vec![];
+            for g in games.iter() {
+                let view = store.view(g, local.cover(&g.id, &g.title), local.hero(&g.id, &g.title));
+                if view.art.is_none() {
+                    list.push((g.id.clone(), g.title.clone(), ArtKind::Cover));
+                }
+                if view.hero.is_none() {
+                    list.push((g.id.clone(), g.title.clone(), ArtKind::Hero));
+                }
+            }
+            list
         };
         let total = missing.len();
         let mut found = 0;
         let mut last_error = None;
-        for (done, (id, title)) in missing.into_iter().enumerate() {
-            match find_url(&id, &title, &key).and_then(|url| url.map(|u| download(&u, &id)).transpose()) {
+        for (done, (id, title, kind)) in missing.into_iter().enumerate() {
+            match find_url(kind, &id, &title, &key).and_then(|url| url.map(|u| download(&u, &id, kind)).transpose()) {
                 Ok(Some(())) => {
                     found += 1;
                     let _ = app.emit("library-changed", ());
@@ -256,6 +347,41 @@ mod tests {
         assert!(covers[&cover_key("Com Capa")].ends_with("capa.webp"));
         assert_eq!(covers.len(), 3);
         std::fs::remove_dir_all(library).unwrap();
+    }
+
+    #[test]
+    fn capa_e_banner_ficam_cada_um_no_seu_papel() {
+        let library = temp_library("papeis");
+        let dir = library.join(COVERS_DIR);
+        write(dir.join("Dusklight").join("capa.png"));
+        write(dir.join("Dusklight").join("banner.png"));
+        write(dir.join("So Banner").join("banner.jpg"));
+        write(dir.join("Com Hero").join("hero.webp"));
+        write(dir.join("Com Hero").join("a.jpg"));
+        write(dir.join("Sem Nome").join("foto.jpg"));
+        write(dir.join("Solto.png"));
+
+        let covers = imported_covers(&library);
+        let banners = imported_banners(&library);
+        assert!(covers[&cover_key("Dusklight")].ends_with("capa.png"));
+        assert!(banners[&cover_key("Dusklight")].ends_with("banner.png"));
+        assert!(!covers.contains_key(&cover_key("So Banner")), "banner sozinho não vira capa");
+        assert!(banners[&cover_key("So Banner")].ends_with("banner.jpg"));
+        assert!(covers[&cover_key("Com Hero")].ends_with("a.jpg"));
+        assert!(banners[&cover_key("Com Hero")].ends_with("hero.webp"));
+        assert!(covers.contains_key(&cover_key("Sem Nome")));
+        assert!(!banners.contains_key(&cover_key("Sem Nome")), "imagem qualquer não vira banner");
+        assert!(!banners.contains_key(&cover_key("Solto")));
+        std::fs::remove_dir_all(library).unwrap();
+    }
+
+    #[test]
+    fn caminhos_e_nomes_de_capa_e_banner_sao_diferentes() {
+        assert!(ArtKind::Cover.path("steam", "70").contains("/grids/steam/70?dimensions="));
+        assert!(ArtKind::Hero.path("steam", "70").ends_with("/heroes/steam/70"));
+        assert!(ArtKind::Hero.path("game", "9").ends_with("/heroes/game/9"));
+        assert_eq!(ArtKind::Cover.file_suffix(), "");
+        assert_eq!(ArtKind::Hero.file_suffix(), HERO_SUFFIX);
     }
 
     #[test]

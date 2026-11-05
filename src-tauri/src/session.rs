@@ -350,20 +350,20 @@ pub fn start(app: &AppHandle, state: &Arc<AppState>, game_id: &str) -> Result<()
         }
     };
 
-    let art = {
+    let view = {
         let mut store = state.store.lock().unwrap();
-        let covers = art::imported_covers(Path::new(&store.library_dir()));
-        let art = store.view(&game, art::local_cover(&game.id, &game.title, &covers)).art;
+        let local = art::LocalArt::load(Path::new(&store.library_dir()));
+        let view = store.view(&game, local.cover(&game.id, &game.title), local.hero(&game.id, &game.title));
         store.meta.entry(game.id.clone()).or_default().last_played = now_secs();
         let _ = store.save();
-        art
+        view
     };
 
     let new_session = Session {
         game_id: game.id.clone(),
         title: game.title.clone(),
-        art,
-        hero: game.hero.clone(),
+        art: view.art,
+        hero: view.hero,
         target,
         tracker: Tracker::new(Instant::now()),
     };

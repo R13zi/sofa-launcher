@@ -24,6 +24,27 @@ pub struct AppState {
     pub import_cancel: AtomicBool,
 }
 
+/// Ctrl + Shift + F10 abre o menu mesmo com um jogo em primeiro plano, como o L3 + R3.
+/// Se outro programa já usa o atalho, o Sofa segue funcionando sem ele.
+fn register_menu_shortcut(app: &tauri::AppHandle) {
+    use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+    let plugin = tauri_plugin_global_shortcut::Builder::new()
+        .with_handler(|app, _shortcut, event| {
+            if event.state() == ShortcutState::Pressed {
+                input::trigger_combo(app);
+            }
+        })
+        .build();
+    if let Err(e) = app.plugin(plugin) {
+        library::debug_log(&format!("atalho global indisponível: {e}"));
+        return;
+    }
+    let shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::F10);
+    if let Err(e) = app.global_shortcut().register(shortcut) {
+        library::debug_log(&format!("atalho global indisponível: {e}"));
+    }
+}
+
 fn main() {
     // Duas instâncias reagiriam ao mesmo controle ao mesmo tempo. O mutex vive até o fim do processo.
     let _guard = unsafe { CreateMutexW(None, false, w!("Local\\SofaLauncher")) };
@@ -48,6 +69,7 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(state.clone())
         .setup(move |app| {
+            register_menu_shortcut(app.handle());
             input::spawn(app.handle().clone());
             session::spawn_monitor(app.handle().clone(), state.clone());
             importer::spawn_detector(app.handle().clone(), state.clone());
@@ -62,6 +84,9 @@ fn main() {
             commands::set_favorite,
             commands::set_hidden,
             commands::set_art,
+            commands::set_hero,
+            commands::reduce_animations_get,
+            commands::reduce_animations_set,
             commands::set_launch_file,
             commands::launch_game,
             commands::session_info,

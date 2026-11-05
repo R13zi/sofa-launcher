@@ -1,6 +1,7 @@
 import { ComponentChild, createContext } from "preact";
 import { useContext, useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Direction, findNext } from "./focus/spatial";
+import { finishLeaving, LayerState, popLayer, popToBase } from "./layerStack";
 
 export type Action =
   | "up" | "down" | "left" | "right"
@@ -27,9 +28,34 @@ export function afterRender(fn: () => void): void {
 }
 
 let stack: Layer[] = [];
+/** Camadas que já saíram da pilha e só estão terminando a animação de saída. */
+let leaving: Layer[] = [];
 let nextId = 1;
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((l) => l());
+
+/** Igual à duração de `layer-out` no CSS. */
+const LAYER_EXIT_MS = 180;
+
+const animationsOn = () => !document.documentElement.classList.contains("no-anim");
+
+export function setAnimationsEnabled(enabled: boolean): void {
+  document.documentElement.classList.toggle("no-anim", !enabled);
+}
+
+function apply(next: LayerState<Layer>): void {
+  const added = next.leaving.filter((layer) => !leaving.includes(layer));
+  stack = next.stack;
+  leaving = next.leaving;
+  if (added.length > 0) {
+    if (animationsOn()) {
+      setTimeout(() => apply(finishLeaving({ stack, leaving }, added)), LAYER_EXIT_MS);
+    } else {
+      leaving = finishLeaving({ stack, leaving }, added).leaving;
+    }
+  }
+  notify();
+}
 
 export const nav = {
   push(view: ComponentChild, overlay = false): void {
@@ -43,8 +69,7 @@ export const nav = {
   },
   pop(): void {
     if (stack.length <= 1) return;
-    stack = stack.slice(0, -1);
-    notify();
+    apply(popLayer({ stack, leaving }));
     const top = stack[stack.length - 1];
     afterRender(() => {
       if (top.savedFocus?.isConnected) top.savedFocus.focus();
@@ -53,8 +78,7 @@ export const nav = {
   },
   /** Volta para a camada base (tela inicial). */
   reset(): void {
-    stack = stack.slice(0, 1);
-    notify();
+    apply(popToBase({ stack, leaving }));
     afterRender(focusFirst);
   },
   depth: () => stack.length,
@@ -100,7 +124,7 @@ export function moveFocus(direction: Direction): void {
   const index = findNext(current.getBoundingClientRect(), others.map((el) => el.getBoundingClientRect()), direction);
   if (index >= 0) {
     others[index].focus({ preventScroll: true });
-    others[index].scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
+    others[index].scrollIntoView({ block: "center", inline: "center", behavior: animationsOn() ? "smooth" : "auto" });
   }
 }
 
@@ -132,7 +156,7 @@ export function dispatchAction(action: Action): void {
   }
 }
 
-function LayerView({ layer, active, hidden }: { layer: Layer; active: boolean; hidden: boolean }) {
+function LayerView({ layer, active, hidden, exiting }: { layer: Layer; active: boolean; hidden: boolean; exiting: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     layer.element = ref.current;
@@ -152,8 +176,12 @@ function LayerView({ layer, active, hidden }: { layer: Layer; active: boolean; h
     <LayerContext.Provider value={layer}>
       <div
         ref={ref}
-        class={layer.overlay ? "layer overlay" : "layer"}
+        class={`layer ${layer.overlay ? "overlay" : ""} ${exiting ? "leaving" : ""}`}
         style={hidden ? { display: "none" } : undefined}
+        // Clicar fora de um diálogo ou menu é o mesmo que voltar.
+        onClick={(e) => {
+          if (active && layer.overlay && e.target === ref.current) dispatchAction("back");
+        }}
         {...(active ? { "data-layer": "" } : { inert: true })}
       >
         {layer.view}
@@ -175,11 +203,17 @@ export function NavRoot({ root }: { root: ComponentChild }) {
   // Camadas abaixo da última tela cheia não precisam ser desenhadas.
   let firstVisible = stack.length - 1;
   while (firstVisible > 0 && stack[firstVisible].overlay) firstVisible--;
+  // Na mesma lista, para a camada que sai continuar a mesma, sem ser recriada.
   return (
     <>
-      {stack.map((layer, i) => (
-        <LayerView key={layer.id} layer={layer} active={i === stack.length - 1} hidden={i < firstVisible} />
-      ))}
+      {[
+        ...stack.map((layer, i) => (
+          <LayerView key={layer.id} layer={layer} active={i === stack.length - 1} hidden={i < firstVisible} exiting={false} />
+        )),
+        ...leaving.map((layer) => (
+          <LayerView key={layer.id} layer={layer} active={false} hidden={false} exiting />
+        )),
+      ]}
     </>
   );
 }

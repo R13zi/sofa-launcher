@@ -94,6 +94,27 @@ export function GameDetail({ gameId }: { gameId: string }) {
           >
             Escolher capa
           </button>
+          <button
+            onClick={() => openMenu(
+              "Banner",
+              [
+                {
+                  label: "Escolher imagem",
+                  onClick: () => openFileBrowser({
+                    title: "Escolher banner",
+                    exts: ["jpg", "jpeg", "png", "webp"],
+                    onPick: (path) => update("set_hero", { path }),
+                  }),
+                },
+                ...(game.custom_hero
+                  ? [{ label: "Remover", danger: true, onClick: () => update("set_hero", { path: null }) }]
+                  : []),
+              ],
+              `${game.custom_hero ?? "Nenhuma imagem escolhida."}\n\nEste banner vale mais do que os importados, os baixados e os da Steam.`,
+            )}
+          >
+            Banner: {game.custom_hero ? fileName(game.custom_hero) : "automático"}
+          </button>
           <button onClick={() => update("set_hidden", { value: !game.hidden })}>
             {game.hidden ? "Mostrar na biblioteca" : "Ocultar da biblioteca"}
           </button>

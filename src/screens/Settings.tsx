@@ -4,12 +4,14 @@ import { showError } from "../components/Dialog";
 import { openFileBrowser } from "../components/FileBrowser";
 import { Hints } from "../components/Hints";
 import { openKeyboard } from "../components/VirtualKeyboard";
+import { setAnimationsEnabled } from "../nav";
 
 export function Settings() {
   const [autostart, setAutostart] = useState(false);
   const [swap, setSwap] = useState(false);
   const [hasKey, setHasKey] = useState(false);
   const [libraryDir, setLibraryDir] = useState("");
+  const [reduceAnimations, setReduceAnimations] = useState(false);
   const [progress, setProgress] = useState<ArtProgress | null>(null);
 
   useEffect(() => {
@@ -17,6 +19,7 @@ export function Settings() {
     void call<boolean>("swap_confirm_get").then(setSwap);
     void call<boolean>("art_key_status").then(setHasKey);
     void call<string>("library_dir_get").then(setLibraryDir);
+    void call<boolean>("reduce_animations_get").then(setReduceAnimations);
     void on<ArtProgress>("art-progress", setProgress);
   }, []);
 
@@ -32,6 +35,14 @@ export function Settings() {
         </button>
         <button onClick={() => call("swap_confirm_set", { value: !swap }).then(() => setSwap(!swap)).catch(showError)}>
           <span>Inverter confirmar e voltar (A/B)</span><span class="detail">{swap ? "Ligado" : "Desligado"}</span>
+        </button>
+        <button
+          onClick={() => call("reduce_animations_set", { value: !reduceAnimations }).then(() => {
+            setAnimationsEnabled(reduceAnimations);
+            setReduceAnimations(!reduceAnimations);
+          }).catch(showError)}
+        >
+          <span>Animações</span><span class="detail">{reduceAnimations ? "Desligado" : "Ligado"}</span>
         </button>
         <button
           onClick={() => openFileBrowser({
@@ -55,12 +66,12 @@ export function Settings() {
           <span>Chave do SteamGridDB</span><span class="detail">{hasKey ? "Configurada" : "Não configurada"}</span>
         </button>
         <button disabled={!hasKey} onClick={() => call("art_fetch").catch(showError)}>
-          Baixar capas que faltam
+          Baixar capas e banners que faltam
         </button>
         {progress && (
           <p class={progress.error ? "error" : "muted"}>
             {progress.finished ? "Concluído: " : "Baixando: "}
-            {progress.done}/{progress.total}, {progress.found} capa(s) encontrada(s)
+            {progress.done}/{progress.total}, {progress.found} imagem(ns) encontrada(s)
             {progress.error ? `. Último erro: ${progress.error}` : ""}
           </p>
         )}

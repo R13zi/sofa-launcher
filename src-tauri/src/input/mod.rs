@@ -147,15 +147,20 @@ fn dispatch(app: &AppHandle, outputs: Vec<Output>) {
                 Mode::InGame => {}
                 Mode::Desktop => overlay::on_action(app, action),
             },
-            Output::Combo => match mode() {
-                Mode::Desktop => overlay::exit(app),
-                Mode::InGame => {
-                    crate::session::show_launcher(app, true);
-                    crate::commands::notify_combo(app);
-                }
-                Mode::Launcher => crate::commands::notify_combo(app),
-            },
+            Output::Combo => trigger_combo(app),
         }
+    }
+}
+
+/// Abre o menu do Sofa. Vem do L3 + R3 ou do atalho global de teclado.
+pub fn trigger_combo(app: &AppHandle) {
+    match mode() {
+        Mode::Desktop => overlay::exit(app),
+        Mode::InGame => {
+            crate::session::show_launcher(app, true);
+            crate::commands::notify_combo(app);
+        }
+        Mode::Launcher => crate::commands::notify_combo(app),
     }
 }
 

@@ -35,6 +35,24 @@ O modo desktop serve para janelas que exigem mouse e teclado, como logins e diá
 | LB / RB | Alt+Tab / Tab |
 | B ou L3 + R3 | Sair |
 
+## Mouse e teclado
+
+O modo ativa sozinho: basta mexer o mouse ou usar uma tecla. **F2** alterna manualmente, e qualquer botão do controle volta ao modo controle.
+
+| Tecla | Ação |
+|---|---|
+| Setas | Navegar |
+| Enter | Confirmar |
+| Esc ou Backspace | Voltar |
+| F ou Ctrl + F | Buscar |
+| Q / E | Trocar de aba |
+| M | Menu |
+| **Ctrl + Shift + F10** | Menu rápido, inclusive com um jogo aberto |
+
+No mouse, as abas e as dicas da base da tela são clicáveis. O botão direito ou o lateral equivale a voltar, assim como clicar fora de um menu, e a roda rola a fileira de capas e as listas.
+
+Ao digitar, o texto vem do teclado físico, com acentos. Enter conclui e Esc cancela.
+
 ## PC da sala
 
 O Sofa inicia com o Windows por padrão. Para desativar, vá em Configurações → Iniciar com o Windows.
@@ -56,8 +74,10 @@ X:\sofa\dump\
              Outro Jogo\jogo.exe + sofa.json (opcional)
   iso\       Dusklight\jogo.iso
              Outro Decomp\assets\... (qualquer estrutura)
-  capas\     Dusklight.png
-             Batman Arkham Origins\arte.jpg
+  capas\     Dusklight\capa.png
+             Dusklight\banner.png
+             Half-Life\banner.jpg
+             Outro Jogo.png
 ```
 
 Ao conectar o disco, o Sofa avisa se houver jogos novos. Também dá para abrir por Menu → Importar jogos. Para escolher onde os jogos ficam, vá em Configurações → Pasta dos jogos importados (padrão: `%USERPROFILE%\Games\Sofa`).
@@ -65,7 +85,7 @@ Ao conectar o disco, o Sofa avisa se houver jogos novos. Também dá para abrir 
 - **Pastas de emulador:** o nome precisa ser o id do emulador cadastrado no Sofa. Valem arquivos soltos com as extensões dele ou pastas de jogo inteiras.
 - **`pc\`:** cada subpasta é um jogo e é copiada inteira, e a biblioteca aponta para o `.exe` da cópia. Um `.exe` solto em `pc\` não é importado.
 - **`iso\`:** arquivos que um jogo pede depois, como em decomps. Cada subpasta é copiada inteira para `<biblioteca>\iso\<nome>`, sem filtro de extensão, seja uma ISO ou uma pasta de assets. Nada aqui vira jogo, mesmo que haja um `.exe` dentro.
-- **`capas\`:** imagens `.jpg`, `.png` ou `.webp`, soltas com o nome do jogo ou em uma pasta com o nome dele. Em uma pasta, vale a imagem chamada `capa` ou `cover` ou, sem ela, a primeira em ordem alfabética. A capa é ligada pelo nome, sem diferenciar maiúsculas, acentos e símbolos, e vale para jogos de qualquer origem. Ela tem prioridade sobre as capas baixadas e as da Steam, mas não sobre uma escolhida nos detalhes do jogo. Para trocar uma capa, apague a antiga em `<biblioteca>\capas`, porque nada é sobrescrito.
+- **`capas\`:** imagens `.jpg`, `.png` ou `.webp`, soltas com o nome do jogo ou em uma pasta com o nome dele. Em uma pasta, `capa` ou `cover` é a capa e `banner` ou `hero` é a arte grande; sem esses nomes, a primeira imagem em ordem alfabética vira a capa, e um banner nunca vira capa. As imagens são ligadas pelo nome, sem diferenciar maiúsculas, acentos e símbolos, e valem para jogos de qualquer origem. Elas têm prioridade sobre as baixadas e as da Steam, mas não sobre uma escolhida nos detalhes do jogo. Para adicionar um banner a uma pasta já importada, basta colocá-lo no dump. Para trocar uma imagem, apague a antiga em `<biblioteca>\capas`, porque nada é sobrescrito.
 - **Qual `.exe`:** se houver um só, depois de ignorar instaladores e auxiliares, ele é usado. Se houver vários, o Sofa pergunta. Se houver só instalador, o jogo não é importado.
 
 ### Usar os arquivos em um jogo
