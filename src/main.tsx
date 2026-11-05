@@ -1,3 +1,6 @@
+import "@fontsource/figtree/400.css";
+import "@fontsource/figtree/600.css";
+import "@fontsource/fraunces/600.css";
 import { render } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { call, on, SessionInfo } from "./api";

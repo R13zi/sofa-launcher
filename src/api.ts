@@ -7,6 +7,7 @@ export interface GameView {
   title: string;
   source: string;
   art: string | null;
+  hero: string | null;
   favorite: boolean;
   hidden: boolean;
   last_played: number;
@@ -34,6 +35,7 @@ export interface SessionInfo {
   game_id: string;
   title: string;
   art: string | null;
+  hero: string | null;
   phase: "launching" | "playing";
 }
 

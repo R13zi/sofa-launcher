@@ -2,6 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { artUrl, call, formatPlaytime, GameView, on, sourceLabel } from "../api";
 import { confirmAction, openMenu, showError } from "../components/Dialog";
 import { openFileBrowser } from "../components/FileBrowser";
+import { HeroArt } from "../components/HeroArt";
 import { Hints } from "../components/Hints";
 import { nav } from "../nav";
 import { fileName, openGameFilesEntry } from "./GameFiles";
@@ -34,30 +35,28 @@ export function GameDetail({ gameId }: { gameId: string }) {
     }
   };
 
-  const src = artUrl(game.art);
+  const cover = artUrl(game.art);
 
   return (
-    <>
-      <div class="top-bar">
-        <h1>{game.title}</h1>
+    <div class="detail-screen">
+      <HeroArt hero={game.hero} art={game.art} />
+      <div class="detail-cover">
+        {cover ? <img src={cover} alt="" /> : <span>{game.title}</span>}
       </div>
-      <div class="detail-page">
-        <div class="cover">
-          {src ? <img src={src} alt="" /> : <span>{game.title}</span>}
-        </div>
-        <div class="side">
-          <p class="muted">{sourceLabel(game.source)} · {formatPlaytime(game.playtime_secs)}</p>
+
+      <div class="detail-panel">
+        <h1 class="display detail-title">{game.title}</h1>
+        <p class="muted" style={{ margin: 0 }}>{sourceLabel(game.source)} · {formatPlaytime(game.playtime_secs)}</p>
+        <div class="detail-actions">
           <button
+            class="primary"
             data-autofocus
             onClick={() => call("launch_game", { id: game.id }).catch(showError)}
           >
-            ▶ Jogar
+            Jogar
           </button>
           <button onClick={() => update("set_favorite", { value: !game.favorite })}>
             {game.favorite ? "★ Remover dos favoritos" : "☆ Adicionar aos favoritos"}
-          </button>
-          <button onClick={() => update("set_hidden", { value: !game.hidden })}>
-            {game.hidden ? "Mostrar na biblioteca" : "Ocultar da biblioteca"}
           </button>
           {gameFiles && (
             <button onClick={() => openGameFilesEntry(gameFiles, game, () => void load())}>
@@ -95,6 +94,9 @@ export function GameDetail({ gameId }: { gameId: string }) {
           >
             Escolher capa
           </button>
+          <button onClick={() => update("set_hidden", { value: !game.hidden })}>
+            {game.hidden ? "Mostrar na biblioteca" : "Ocultar da biblioteca"}
+          </button>
           {game.source === "manual" && (
             <button
               class="danger"
@@ -117,8 +119,8 @@ export function GameDetail({ gameId }: { gameId: string }) {
             </button>
           )}
         </div>
+        <Hints items={[["confirm", "Selecionar"], ["back", "Voltar"]]} />
       </div>
-      <Hints items={[["confirm", "Selecionar"], ["back", "Voltar"]]} />
-    </>
+    </div>
   );
 }

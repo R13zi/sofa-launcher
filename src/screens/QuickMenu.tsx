@@ -55,7 +55,7 @@ export async function openQuickMenu(): Promise<void> {
 
   if (session) {
     items.push(
-      { label: `▶ Continuar ${session.title}`, onClick: resume },
+      { label: "Continuar", onClick: resume },
       {
         label: "Fechar jogo",
         danger: true,
@@ -86,5 +86,5 @@ export async function openQuickMenu(): Promise<void> {
   openMenu(session ? session.title : "Menu", items, undefined, session ? () => {
     nav.pop();
     void resume();
-  } : undefined);
+  } : undefined, { side: true, eyebrow: session ? "Jogando agora" : undefined });
 }

@@ -20,4 +20,6 @@ pub struct Game {
     pub source: String,
     pub launch: Launch,
     pub art: Option<String>,
+    /// Arte grande para o fundo das telas, quando a origem tiver uma.
+    pub hero: Option<String>,
 }

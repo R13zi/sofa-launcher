@@ -42,12 +42,14 @@ export function VirtualKeyboard({ title, initial = "", secret, onDone, onChange 
   const rows = page === "letters" ? LETTER_ROWS : SYMBOL_ROWS;
 
   return (
-    <div class="kb-panel">
-      <h2>{title}</h2>
-      <div class={`kb-text ${chars.length > 40 ? "right" : ""}`}>
-        <span>{chars.slice(0, s.cursor).join("")}</span>
-        <span class="kb-cursor" />
-        <span>{chars.slice(s.cursor).join("")}</span>
+    <div class="kb-panel anchored">
+      <div class="kb-head">
+        <h2 class="display kb-title">{title}</h2>
+        <div class={`kb-text ${chars.length > 40 ? "right" : ""}`}>
+          <span>{chars.slice(0, s.cursor).join("")}</span>
+          <span class="kb-cursor" />
+          <span>{chars.slice(s.cursor).join("")}</span>
+        </div>
       </div>
       <div class="kb-rows">
         {rows.map((row, r) => (

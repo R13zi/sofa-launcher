@@ -35,6 +35,7 @@ pub fn parse_item(text: &str) -> Option<Game> {
             watch_dir: item.install_location,
         },
         art: None,
+        hero: None,
     })
 }
 

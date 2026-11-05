@@ -1,7 +1,7 @@
 {
   "name": "sofa",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,6 +10,8 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@fontsource/figtree": "5.3.0",
+    "@fontsource/fraunces": "5.3.0",
     "@tauri-apps/api": "^2.12.4",
     "preact": "^10.0.0"
   },

@@ -121,6 +121,7 @@ pub struct Session {
     pub game_id: String,
     pub title: String,
     pub art: Option<String>,
+    pub hero: Option<String>,
     target: Target,
     tracker: Tracker,
 }
@@ -130,6 +131,7 @@ pub struct SessionInfo {
     pub game_id: String,
     pub title: String,
     pub art: Option<String>,
+    pub hero: Option<String>,
     pub phase: Phase,
 }
 
@@ -139,6 +141,7 @@ impl Session {
             game_id: self.game_id.clone(),
             title: self.title.clone(),
             art: self.art.clone(),
+            hero: self.hero.clone(),
             phase: self.tracker.phase,
         }
     }
@@ -360,6 +363,7 @@ pub fn start(app: &AppHandle, state: &Arc<AppState>, game_id: &str) -> Result<()
         game_id: game.id.clone(),
         title: game.title.clone(),
         art,
+        hero: game.hero.clone(),
         target,
         tracker: Tracker::new(Instant::now()),
     };

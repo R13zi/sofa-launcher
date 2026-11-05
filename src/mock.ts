@@ -10,7 +10,7 @@ const games = [
   ["emu:dolphin:ww", "Wind Waker", "dolphin"],
   ["manual:dusklight", "Dusklight", "manual"],
 ].map(([id, title, source], i) => ({
-  id, title, source, art: null, favorite: i === 0, hidden: false,
+  id, title, source, art: null, hero: null, favorite: i === 0, hidden: false,
   last_played: i < 3 ? 1000 - i : 0, playtime_secs: i === 0 ? 5400 : 0, launch_file: null as string | null,
 }));
 
@@ -54,7 +54,7 @@ export function mockEmit(event: string, payload: unknown = null): void {
 // Permite simular eventos do backend pelo console do navegador.
 if (typeof window !== "undefined") (window as unknown as { sofaMockEmit: typeof mockEmit }).sofaMockEmit = mockEmit;
 
-let session: { game_id: string; title: string; art: null; phase: string } | null = null;
+let session: { game_id: string; title: string; art: null; hero: null; phase: string } | null = null;
 
 function setSession(next: typeof session): void {
   session = next;
@@ -70,7 +70,7 @@ export function mockInvoke(command: string, args: Record<string, unknown>): unkn
     case "launch_game": {
       const game = games.find((g) => g.id === args.id);
       if (!game) throw new Error("Jogo não encontrado");
-      const started = { game_id: game.id, title: game.title, art: null, phase: "launching" };
+      const started = { game_id: game.id, title: game.title, art: null, hero: null, phase: "launching" };
       setSession(started);
       setTimeout(() => {
         if (session === started) setSession({ ...started, phase: "playing" });

@@ -54,6 +54,7 @@ pub fn to_game(m: &ManualGame) -> Game {
             cwd: m.cwd.clone().unwrap_or_else(|| cwd_of(&m.path)),
         },
         art: None,
+        hero: None,
     }
 }
 

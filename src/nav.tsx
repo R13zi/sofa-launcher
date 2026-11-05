@@ -85,10 +85,10 @@ export function focusFirst(): void {
   const preferred = root.querySelector<HTMLElement>("[data-autofocus]:not([disabled])");
   const target = preferred ?? focusables(root)[0];
   target?.focus();
-  target?.scrollIntoView({ block: "center", inline: "nearest" });
+  target?.scrollIntoView({ block: "center", inline: "center" });
 }
 
-function moveFocus(direction: Direction): void {
+export function moveFocus(direction: Direction): void {
   const root = activeRoot();
   if (!root) return;
   const current = document.activeElement as HTMLElement | null;
@@ -100,7 +100,7 @@ function moveFocus(direction: Direction): void {
   const index = findNext(current.getBoundingClientRect(), others.map((el) => el.getBoundingClientRect()), direction);
   if (index >= 0) {
     others[index].focus({ preventScroll: true });
-    others[index].scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+    others[index].scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
   }
 }
 

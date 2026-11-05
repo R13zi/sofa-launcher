@@ -2,6 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { call, on } from "../api";
 import { openMenu, showError } from "../components/Dialog";
 import { Hints } from "../components/Hints";
+import { DiscIcon, ImageIcon } from "../components/Icons";
 import { nav, useActions } from "../nav";
 import {
   DrivePlan, formatBytes, formatEta, ImportItem, ImportProgress, isImportable, selectedBytes, statusLabel,
@@ -165,7 +166,8 @@ function ImportList({ plan }: { plan: DrivePlan }) {
           <button key={item.id} onClick={() => press(item)}>
             <span>
               {isImportable(item) ? (selected.has(item.id) ? "☑ " : "☐ ") : ""}
-              {item.category === "iso" ? "💿 " : item.category === "capas" ? "🖼️ " : ""}
+              {item.category === "iso" && <DiscIcon />}
+              {item.category === "capas" && <ImageIcon />}
               {item.title}
             </span>
             <span class={item.status === "blocked" || item.status === "conflict" ? "detail error" : "detail"}>

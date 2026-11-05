@@ -1,37 +1,29 @@
 import { useEffect, useState } from "preact/hooks";
-import { artUrl, call, GameView, on } from "../api";
+import { artUrl, call, formatPlaytime, GameView, on, sourceLabel } from "../api";
+import { showError } from "../components/Dialog";
+import { HeroArt } from "../components/HeroArt";
 import { Hints } from "../components/Hints";
 import { openKeyboard } from "../components/VirtualKeyboard";
-import { afterRender, focusFirst, nav, useActions } from "../nav";
+import { afterRender, focusFirst, moveFocus, nav, useActions } from "../nav";
 import { GameDetail } from "./GameDetail";
 import { buildTabs, cycleTab, favoriteGames, filterGames, recentGames } from "./library";
 import { openQuickMenu } from "./QuickMenu";
 
-function GameCard({ game, autofocus }: { game: GameView; autofocus?: boolean }) {
+function GameCard({ game, autofocus, onSelect }: { game: GameView; autofocus?: boolean; onSelect: () => void }) {
   const [broken, setBroken] = useState(false);
   const src = broken ? null : artUrl(game.art);
   return (
     <button
       class={`card ${src ? "" : "no-art"}`}
       data-autofocus={autofocus ? "" : undefined}
+      data-game-id={game.id}
+      onFocus={onSelect}
       onClick={() => nav.push(<GameDetail gameId={game.id} />)}
     >
       {src && <img src={src} alt="" loading="lazy" onError={() => setBroken(true)} />}
       {game.favorite && <span class="badge">★</span>}
       <span class="name">{game.title}</span>
     </button>
-  );
-}
-
-function Section({ title, games, rowFocus }: { title: string; games: GameView[]; rowFocus?: boolean }) {
-  if (games.length === 0) return null;
-  return (
-    <section style={{ marginBottom: "1.2rem" }}>
-      <h2>{title}</h2>
-      <div class="grid">
-        {games.map((g, i) => <GameCard key={g.id} game={g} autofocus={rowFocus && i === 0} />)}
-      </div>
-    </section>
   );
 }
 
@@ -46,10 +38,26 @@ export function useLibrary(): GameView[] | null {
   return games;
 }
 
+/** Títulos longos não cabem na arte em tamanho cheio. */
+export const titleClass = (title: string) => (title.length > 18 ? "display home-title long" : "display home-title");
+
+const inHeroActions = () => !!(document.activeElement as HTMLElement | null)?.closest(".home-actions");
+
+function moveWithinHero(direction: "left" | "right"): void {
+  if (!inHeroActions()) {
+    moveFocus(direction);
+    return;
+  }
+  const buttons = Array.from(document.querySelectorAll<HTMLElement>("[data-layer] .home-actions button"));
+  const index = buttons.indexOf(document.activeElement as HTMLElement) + (direction === "right" ? 1 : -1);
+  buttons[index]?.focus();
+}
+
 export function Home() {
   const games = useLibrary();
   const [tab, setTab] = useState("home");
   const [query, setQuery] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const list = games ?? [];
   const tabs = buildTabs(list);
   const activeTab = tabs.some((t) => t.id === tab) ? tab : "home";
@@ -59,9 +67,29 @@ export function Home() {
     setTab(cycleTab(tabs, activeTab, delta));
   };
 
+  // Lê o foco diretamente: o evento de foco não dispara com a janela em segundo plano,
+  // e o controle funciona mesmo assim (logo depois do boot, por exemplo).
+  const syncSelection = () => {
+    const id = (document.activeElement as HTMLElement | null)?.dataset?.gameId;
+    if (id) setSelectedId(id);
+  };
+
   useEffect(() => {
-    afterRender(focusFirst);
+    afterRender(() => {
+      focusFirst();
+      syncSelection();
+    });
   }, [activeTab, games === null]);
+
+  const searching = query.trim().length > 0;
+  const filtered = filterGames(list, activeTab, query);
+  // Na tela inicial, o que foi jogado por último vem primeiro.
+  const recent = recentGames(list);
+  const favorites = favoriteGames(list).filter((g) => !recent.includes(g));
+  const row = activeTab === "home" && !searching
+    ? [...recent, ...favorites, ...filtered.filter((g) => !recent.includes(g) && !favorites.includes(g))]
+    : filtered;
+  const selected = row.find((g) => g.id === selectedId) ?? row[0] ?? null;
 
   useActions({
     lb: () => switchTab(-1),
@@ -74,41 +102,75 @@ export function Home() {
     }),
     menu: openQuickMenu,
     back: query ? () => setQuery("") : undefined,
+    // Da fileira para cima, sempre vai para o Jogar, qualquer que seja a posição do cartão.
+    up: () => {
+      const jogar = document.querySelector<HTMLElement>("[data-layer] .home-actions .primary");
+      if (inHeroActions() || !jogar) moveFocus("up");
+      else jogar.focus();
+      syncSelection();
+    },
+    // Dos botões para baixo, volta ao jogo selecionado, e não ao cartão que estiver logo abaixo.
+    down: () => {
+      if (inHeroActions() && selected) {
+        const card = Array.from(document.querySelectorAll<HTMLElement>("[data-layer] .card"))
+          .find((el) => el.dataset.gameId === selected.id);
+        if (card) {
+          card.focus();
+          return;
+        }
+      }
+      moveFocus("down");
+      syncSelection();
+    },
+    // Nos botões, os lados só alternam entre eles: não pulam para a fileira.
+    left: () => {
+      moveWithinHero("left");
+      syncSelection();
+    },
+    right: () => {
+      moveWithinHero("right");
+      syncSelection();
+    },
   });
 
-  const searching = query.trim().length > 0;
-  const showHome = activeTab === "home" && !searching;
-  const filtered = filterGames(list, activeTab, query);
-  const recent = recentGames(list);
-  const favorites = favoriteGames(list);
-
   return (
-    <>
-      <div class="top-bar">
-        <h1>Sofa</h1>
-        <div class="tabs" style={{ marginLeft: "1.5rem" }}>
-          {tabs.map((t) => (
-            <span key={t.id} class={`tab ${t.id === activeTab ? "current" : ""}`}>{t.label}</span>
-          ))}
+    <div class="home">
+      <HeroArt hero={selected?.hero ?? null} art={selected?.art ?? null} />
+      <div class="home-side" />
+
+      <div class="home-nav">
+        <span class="display home-brand">Sofa</span>
+        {tabs.map((t) => (
+          <span key={t.id} class={`tab ${t.id === activeTab && !searching ? "current" : ""}`}>{t.label}</span>
+        ))}
+        {searching && <span class="home-search">Busca: “{query}” · {filtered.length} resultado(s)</span>}
+      </div>
+
+      {selected && (
+        <div class="home-info">
+          <span class="home-eyebrow">{selected.last_played > 0 ? "Continuar jogando" : sourceLabel(selected.source)}</span>
+          <h1 class={titleClass(selected.title)}>{selected.title}</h1>
+          <span class="home-meta">{sourceLabel(selected.source)} · {formatPlaytime(selected.playtime_secs)}</span>
+          <div class="home-actions">
+            <button class="primary" onClick={() => call("launch_game", { id: selected.id }).catch(showError)}>Jogar</button>
+            <button onClick={() => nav.push(<GameDetail gameId={selected.id} />)}>Detalhes</button>
+          </div>
         </div>
+      )}
+
+      <div class="home-row">
+        {row.map((g, i) => (
+          <GameCard key={g.id} game={g} autofocus={i === 0} onSelect={() => setSelectedId(g.id)} />
+        ))}
       </div>
-      {searching && <p class="muted">Busca: “{query}” — {filtered.length} resultado(s)</p>}
-      <div class="scroll">
-        {games === null && <p class="muted">Carregando biblioteca…</p>}
-        {games !== null && list.length === 0 && (
-          <p class="muted">Nenhum jogo encontrado. Abra o menu para adicionar jogos ou emuladores.</p>
-        )}
-        {showHome ? (
-          <>
-            <Section title="Continuar jogando" games={recent} rowFocus />
-            <Section title="Favoritos" games={favorites.filter((f) => !recent.includes(f))} />
-            <Section title="Todos os jogos" games={filtered.filter((g) => !recent.includes(g) && !favorites.includes(g))} />
-          </>
-        ) : (
-          <div class="grid">{filtered.map((g) => <GameCard key={g.id} game={g} />)}</div>
-        )}
-      </div>
+      {games === null && <p class="home-empty">Carregando biblioteca…</p>}
+      {games !== null && row.length === 0 && (
+        <p class="home-empty">
+          {searching ? "Nenhum jogo encontrado nesta busca." : "Nenhum jogo encontrado. Abra o menu para adicionar jogos ou emuladores."}
+        </p>
+      )}
+
       <Hints items={[["confirm", "Abrir"], ["lb", "Aba anterior"], ["rb", "Próxima aba"], ["y", "Buscar"], ["menu", "Menu"]]} />
-    </>
+    </div>
   );
 }

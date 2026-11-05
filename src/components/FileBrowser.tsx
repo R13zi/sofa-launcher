@@ -2,6 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { call, FsEntry } from "../api";
 import { Action, afterRender, focusFirst, nav, useActions } from "../nav";
 import { Hints } from "./Hints";
+import { FileIcon, FolderIcon } from "./Icons";
 
 interface Props {
   title: string;
@@ -56,7 +57,7 @@ function FileBrowser({ title, exts = [], pickDir, onPick }: Props) {
             key={entry.path}
             onClick={() => (entry.dir ? setTrail([...trail, entry.path]) : pick(entry.path))}
           >
-            <span>{entry.dir ? "📁 " : "📄 "}{entry.name}</span>
+            <span>{entry.dir ? <FolderIcon /> : <FileIcon />}{entry.name}</span>
           </button>
         ))}
       </div>

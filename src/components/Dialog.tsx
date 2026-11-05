@@ -9,10 +9,24 @@ export interface MenuItem {
   onClick: () => void;
 }
 
-function MenuDialog({ title, message, items, onBack }: { title: string; message?: string; items: MenuItem[]; onBack?: () => void }) {
+interface MenuStyle {
+  /** Painel lateral em vez de diálogo centralizado. */
+  side?: boolean;
+  /** Texto pequeno acima do título. */
+  eyebrow?: string;
+}
+
+function MenuDialog({ title, message, items, onBack, style }: {
+  title: string;
+  message?: string;
+  items: MenuItem[];
+  onBack?: () => void;
+  style?: MenuStyle;
+}) {
   useActions(onBack ? { back: onBack } : {});
   return (
-    <div class="dialog">
+    <div class={style?.side ? "dialog side" : "dialog"}>
+      {style?.eyebrow && <span class="dialog-eyebrow">{style.eyebrow}</span>}
       <h1>{title}</h1>
       {message && <p class="muted">{message}</p>}
       <div class="actions">
@@ -35,8 +49,8 @@ function MenuDialog({ title, message, items, onBack }: { title: string; message?
   );
 }
 
-export function openMenu(title: string, items: MenuItem[], message?: string, onBack?: () => void): void {
-  nav.push(<MenuDialog title={title} items={items} message={message} onBack={onBack} />, true);
+export function openMenu(title: string, items: MenuItem[], message?: string, onBack?: () => void, style?: MenuStyle): void {
+  nav.push(<MenuDialog title={title} items={items} message={message} onBack={onBack} style={style} />, true);
 }
 
 export function showError(error: unknown): void {

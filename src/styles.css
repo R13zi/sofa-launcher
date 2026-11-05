@@ -1,15 +1,18 @@
-/* Layout para TV: unidades relativas à altura da tela e margem contra overscan. */
+/* Estilo Cinema, feito para TV: unidades relativas à altura da tela e margem contra overscan. */
 :root {
-  --bg: #10131f;
-  --panel: #1b2033;
-  --panel-2: #262c44;
-  --text: #f2f4fb;
-  --muted: #a4abc4;
-  --accent: #5ea0ff;
-  --danger: #ff6b6b;
+  --bg: #0c0a09;
+  --panel: #1c1712;
+  --panel-2: #2a2118;
+  --text: #f6f1e7;
+  --muted: #c9bfae;
+  --accent: #f2b84b;
+  --on-accent: #1a1205;
+  --danger: #ff9d7a;
   --safe: 4vh;
+  --gutter: 3.4vw;
+  --art-width: 64.6vw;
   font-size: 2.2vh;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: "Figtree", "Segoe UI", system-ui, sans-serif;
   color: var(--text);
   background: var(--bg);
   color-scheme: dark;
@@ -26,9 +29,10 @@ html, body, #app { height: 100%; margin: 0; overflow: hidden; background: var(--
 body { cursor: none; user-select: none; }
 
 .layer { position: fixed; inset: 0; display: flex; flex-direction: column; padding: var(--safe) calc(var(--safe) * 1.5); background: var(--bg); }
-.layer.overlay { background: rgba(6, 8, 16, 0.78); align-items: center; justify-content: center; }
+.layer.overlay { background: rgba(12, 10, 9, 0.72); align-items: center; justify-content: center; }
 
-h1 { font-size: 2rem; margin: 0; font-weight: 600; }
+h1, .display { font-family: "Fraunces", Georgia, serif; font-weight: 600; }
+h1 { font-size: 3rem; line-height: 1.04; margin: 0; }
 h2 { font-size: 1.3rem; margin: 0 0 0.6rem; font-weight: 600; color: var(--muted); }
 
 button {
@@ -36,73 +40,116 @@ button {
   color: inherit;
   background: var(--panel);
   border: 0.18rem solid transparent;
-  border-radius: 0.6rem;
-  padding: 0.6rem 1.1rem;
+  border-radius: 0.5rem;
+  padding: 0.6rem 1.15rem;
   outline: none;
   cursor: none;
-  transition: transform 0.08s ease-out, background 0.08s ease-out;
 }
-button:focus { border-color: var(--accent); background: var(--panel-2); transform: scale(1.03); }
+/* O item em foco fica preenchido: é o que mais se destaca a alguns metros da TV. */
+button:focus { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+button:focus .detail, button:focus .error { color: inherit; }
 button:disabled { opacity: 0.4; }
-button.danger:focus { border-color: var(--danger); }
+button.danger:focus { background: var(--danger); border-color: var(--danger); }
 
 .top-bar { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; flex: none; }
-.top-bar .spacer { flex: 1; }
-.scroll { flex: 1; min-height: 0; overflow: hidden auto; padding: 0.5rem; scrollbar-width: none; }
+.scroll { flex: 1; min-height: 0; overflow: hidden auto; padding: 0.3rem; scrollbar-width: none; }
 
-.hints { flex: none; display: flex; justify-content: flex-end; gap: 1.6rem; padding-top: 0.8rem; color: var(--muted); font-size: 0.95rem; }
-.hint { display: flex; align-items: center; gap: 0.45rem; }
-.glyph { display: inline-flex; align-items: center; justify-content: center; min-width: 1.6rem; height: 1.6rem; padding: 0 0.35rem; border-radius: 0.8rem; background: var(--panel-2); color: var(--text); font-weight: 700; font-size: 0.85rem; }
+.hints { flex: none; display: flex; justify-content: flex-end; gap: 1.5rem; padding-top: 0.8rem; color: var(--muted); font-size: 0.93rem; }
+.hint { display: flex; align-items: center; gap: 0.4rem; }
+.glyph { font-weight: 600; color: var(--text); }
 
-/* Grade de jogos */
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: 1.2rem; }
-.card { padding: 0; aspect-ratio: 2 / 3; overflow: hidden; position: relative; display: flex; flex-direction: column; justify-content: flex-end; width: 100%; }
+.icon { width: 1.1em; height: 1.1em; flex: none; vertical-align: -0.15em; margin-right: 0.4em; }
+
+/* Arte grande, compartilhada pelas telas */
+.hero-art { position: absolute; top: 0; right: 0; width: var(--art-width); height: 100%; overflow: hidden; background: var(--panel-2); }
+.hero-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Sem arte grande, a capa ampliada ocupa o espaço. */
+.hero-art img.from-cover { filter: blur(1.6rem); transform: scale(1.15); opacity: 0.55; }
+
+/* Tela inicial */
+.home { position: absolute; inset: 0; overflow: hidden; }
+.home .hero-art { height: 64.8vh; }
+.home-side { position: absolute; top: 0; left: 0; width: 39.6vw; height: 64.8vh; background: var(--bg); }
+.home-nav { position: absolute; top: var(--safe); left: var(--gutter); right: var(--gutter); display: flex; align-items: center; gap: 1.8rem; color: var(--muted); font-size: 1.05rem; white-space: nowrap; }
+.home-brand { font-size: 1.6rem; color: var(--text); }
+.tab { padding-bottom: 0.25rem; border-bottom: 0.17rem solid transparent; }
+.tab.current { color: var(--text); font-weight: 600; border-bottom-color: var(--accent); }
+.home-search { margin-left: auto; padding: 0.2rem 0.7rem; border-radius: 0.4rem; background: var(--bg); color: var(--text); }
+.home-info { position: absolute; left: var(--gutter); top: 19.4vh; width: 36vw; display: flex; flex-direction: column; gap: 0.8rem; }
+.home-eyebrow { color: var(--muted); font-size: 0.97rem; }
+.home-title { margin: 0; font-size: 4.4rem; line-height: 1.02; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.home-title.long { font-size: 2.9rem; }
+.home-meta { color: var(--muted); font-size: 1.05rem; }
+.home-actions { display: flex; gap: 0.7rem; margin-top: 0.7rem; }
+.home-actions button { padding: 0.65rem 1.7rem; font-size: 1.13rem; }
+.home-actions .primary { font-weight: 600; }
+.home-row { position: absolute; left: 0; right: 0; top: 66.8vh; height: 27.6vh; padding: 0 var(--gutter); display: flex; align-items: center; gap: 1rem; overflow: hidden; }
+.home-empty { position: absolute; left: var(--gutter); top: 72vh; color: var(--muted); }
+.home .hints { position: absolute; right: var(--gutter); bottom: 2.2vh; padding: 0; }
+
+/* Cartão de jogo */
+.card { flex: none; height: 25.7vh; aspect-ratio: 196 / 278; padding: 0; overflow: hidden; position: relative; display: flex; flex-direction: column; justify-content: flex-end; background: var(--panel-2); border-width: 0.22rem; transition: transform 0.08s ease-out; }
+.card:focus { background: var(--panel-2); color: var(--text); transform: scale(1.05); }
 .card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.card .name { position: relative; padding: 0.6rem; font-size: 1rem; text-align: left; background: linear-gradient(transparent, rgba(0, 0, 0, 0.85)); }
-.card.no-art .name { background: none; height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 1.15rem; }
-.card .badge { position: absolute; top: 0.4rem; right: 0.4rem; background: rgba(0, 0, 0, 0.7); border-radius: 0.4rem; padding: 0.1rem 0.45rem; font-size: 0.75rem; }
+.card .name { position: relative; padding: 0.5rem; font-size: 0.93rem; text-align: left; background: rgba(12, 10, 9, 0.78); }
+.card.no-art .name { background: none; }
+.card .badge { position: absolute; top: 0.35rem; right: 0.35rem; background: rgba(12, 10, 9, 0.8); border-radius: 0.3rem; padding: 0.05rem 0.4rem; font-size: 0.75rem; }
 
-.row { display: flex; gap: 1.2rem; overflow: hidden; padding: 0.5rem; }
-.row .card { flex: none; width: 12rem; }
+/* Listas */
+.list { display: flex; flex-direction: column; gap: 0.45rem; }
+.list button { text-align: left; width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex: none; }
+.list .detail { color: var(--muted); font-size: 0.93rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.tabs { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-.tab { padding: 0.35rem 0.9rem; border-radius: 0.5rem; color: var(--muted); }
-.tab.current { background: var(--accent); color: #08101f; font-weight: 600; }
-
-.list { display: flex; flex-direction: column; gap: 0.5rem; }
-.list button { text-align: left; width: 100%; display: flex; justify-content: space-between; gap: 1rem; }
-.list .detail { color: var(--muted); font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-.dialog { background: var(--panel); border-radius: 1rem; padding: 1.6rem; min-width: 40vw; max-width: 70vw; max-height: 85vh; display: flex; flex-direction: column; gap: 1rem; }
-.dialog .actions { display: flex; flex-direction: column; gap: 0.5rem; min-height: 0; overflow: hidden auto; padding: 0.3rem; scrollbar-width: none; }
-.dialog .actions button { width: 100%; }
+/* Diálogos */
+.dialog { background: var(--bg); border-radius: 0.8rem; padding: 1.6rem; min-width: 40vw; max-width: 70vw; max-height: 85vh; display: flex; flex-direction: column; gap: 1rem; }
+.dialog .actions { display: flex; flex-direction: column; gap: 0.45rem; min-height: 0; overflow: hidden auto; padding: 0.2rem; scrollbar-width: none; }
+.dialog .actions button { width: 100%; text-align: left; flex: none; }
+/* Menu rápido: painel lateral sobre a tela de baixo. */
+.dialog.side { position: absolute; top: 0; right: 0; bottom: 0; width: 37.5vw; min-width: 0; max-width: none; max-height: none; border-radius: 0; padding: 5.2vh var(--gutter) 3vh 2.9vw; }
+.dialog.side .hints { margin-top: auto; justify-content: flex-start; }
+.dialog-eyebrow { color: var(--muted); font-size: 0.97rem; margin-bottom: -0.6rem; }
 .muted { color: var(--muted); white-space: pre-line; overflow-wrap: anywhere; }
 .error { color: var(--danger); }
 
-/* Tela de início e fundo do jogo */
-.session-screen { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.2rem; text-align: center; }
-.session-art { height: 50vh; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 0.8rem; }
-.session-spinner { width: 2.4rem; height: 2.4rem; border-radius: 50%; border: 0.3rem solid var(--panel-2); border-top-color: var(--accent); animation: session-spin 1s linear infinite; }
-@keyframes session-spin { to { transform: rotate(360deg); } }
+/* Detalhes do jogo */
+.detail-screen { position: absolute; inset: 0; overflow: hidden; }
+.detail-panel { position: absolute; top: 0; left: 0; bottom: 0; width: 46.9vw; padding: 5.2vh var(--gutter) 2.2vh; background: var(--bg); display: flex; flex-direction: column; gap: 0.6rem; }
+.detail-title { margin: 0; font-size: 3.7rem; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.detail-actions { flex: 1; min-height: 0; overflow: hidden auto; display: flex; flex-direction: column; gap: 0.42rem; margin-top: 0.5rem; padding: 0.2rem; scrollbar-width: none; }
+.detail-actions button { width: 100%; text-align: left; flex: none; }
+.detail-actions .primary { font-weight: 600; padding-block: 0.72rem; }
+.detail-panel .hints { justify-content: flex-start; padding-top: 0.5rem; }
+.detail-cover { position: absolute; right: var(--gutter); bottom: 5.2vh; height: 41.7vh; aspect-ratio: 2 / 3; border-radius: 0.6rem; overflow: hidden; background: var(--panel-2); display: flex; align-items: flex-end; padding: 0.75rem; }
+.detail-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 
-/* Importação */
-.progress-track { width: 70%; height: 1.2rem; border-radius: 0.6rem; background: var(--panel-2); overflow: hidden; }
+/* Iniciando e fundo do jogo */
+.session-full { position: absolute; inset: 0; overflow: hidden; }
+.session-side { position: absolute; top: 0; left: 0; bottom: 0; width: 39.6vw; background: var(--bg); }
+.session-info { position: absolute; left: var(--gutter); top: 34vh; width: 36vw; display: flex; flex-direction: column; gap: 0.9rem; }
+.session-info .home-title { margin-bottom: 0.4rem; }
+.session-bar { width: 27vw; height: 0.34rem; border-radius: 0.17rem; background: var(--panel-2); overflow: hidden; }
+.session-bar span { display: block; width: 38%; height: 100%; border-radius: 0.17rem; background: var(--accent); animation: session-slide 1.4s ease-in-out infinite alternate; }
+/* Só anima enquanto o jogo abre; com o jogo aberto a tela fica parada e não consome processamento. */
+@keyframes session-slide { from { transform: translateX(0); } to { transform: translateX(163%); } }
+.session-full .hints { position: absolute; left: var(--gutter); bottom: 2.2vh; padding: 0; }
+
+/* Progresso */
+.session-screen { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.2rem; text-align: center; }
+.progress-track { width: 70%; height: 0.6rem; border-radius: 0.3rem; background: var(--panel-2); overflow: hidden; }
 .progress-fill { height: 100%; background: var(--accent); transition: width 0.2s linear; }
 
 /* Teclado virtual */
-.kb-panel { width: min(90vw, 70rem); background: var(--panel); border-radius: 1rem; padding: 1.2rem; display: flex; flex-direction: column; gap: 0.8rem; }
-.kb-text { background: #0b0e18; border-radius: 0.5rem; padding: 0.7rem 1rem; font-size: 1.3rem; min-height: 3rem; overflow: hidden; white-space: pre; display: flex; justify-content: flex-start; }
+.kb-panel { width: min(90vw, 70rem); background: var(--bg); padding: 1.2rem; display: flex; flex-direction: column; gap: 0.7rem; }
+.kb-panel.anchored { position: absolute; left: 0; right: 0; bottom: 0; width: auto; height: 69.5vh; padding: 3.3vh var(--gutter) 2.2vh; }
+.kb-head { display: flex; align-items: center; gap: 1.2rem; flex: none; }
+.kb-title { margin: 0; font-size: 1.77rem; color: var(--text); white-space: nowrap; }
+.kb-text { flex: 1; min-width: 0; background: var(--panel); border-radius: 0.5rem; padding: 0.55rem 0.9rem; font-size: 1.26rem; min-height: 2.7rem; overflow: hidden; white-space: pre; display: flex; justify-content: flex-start; align-items: center; }
 .kb-text.right { justify-content: flex-end; }
-.kb-cursor { border-left: 0.12rem solid var(--accent); margin-left: 0.05rem; }
-.kb-rows { display: flex; flex-direction: column; gap: 0.4rem; }
-.kb-row { display: flex; justify-content: center; gap: 0.4rem; }
-.kb-row button { flex: 1 1 0; min-width: 0; padding: 0.55rem 0; text-align: center; font-size: 1.15rem; }
-.kb-row button.wide { flex-grow: 2.2; font-size: 0.95rem; }
+.kb-cursor { border-left: 0.12rem solid var(--accent); margin-left: 0.05rem; height: 1.5rem; }
+.kb-rows { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0.38rem; }
+.kb-row { flex: 1; min-height: 0; display: flex; justify-content: center; gap: 0.38rem; }
+.kb-row button { flex: 1 1 0; min-width: 0; padding: 0; text-align: center; font-size: 1.18rem; }
+.kb-row button.wide { flex-grow: 2.2; font-size: 0.97rem; }
 .kb-row button.space { flex-grow: 5; }
-.kb-row button.on { background: var(--accent); color: #08101f; }
-
-.detail-page { display: flex; gap: 2rem; flex: 1; min-height: 0; }
-.detail-page .cover { height: 60vh; aspect-ratio: 2 / 3; border-radius: 0.8rem; overflow: hidden; background: var(--panel); display: flex; align-items: center; justify-content: center; text-align: center; padding: 0; flex: none; }
-.detail-page .cover img { width: 100%; height: 100%; object-fit: cover; }
-.detail-page .side { flex: 1; display: flex; flex-direction: column; gap: 0.7rem; max-width: 32rem; }
-.detail-page .side button { width: 100%; text-align: left; }
+.kb-row button.on { background: var(--panel-2); border-color: var(--accent); }
+.kb-row button.on:focus { background: var(--accent); }

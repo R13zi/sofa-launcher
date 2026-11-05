@@ -133,31 +133,43 @@ fn steam_root() -> Option<PathBuf> {
     Some(PathBuf::from(path.replace('/', "\\")))
 }
 
+/// Procura uma imagem no cache do jogo, incluindo as subpastas com hash do formato novo.
+fn walk(dir: &Path, depth: u8, prefix: &str) -> Option<PathBuf> {
+    let entries: Vec<_> = std::fs::read_dir(dir).ok()?.flatten().collect();
+    for e in &entries {
+        let name = e.file_name().to_string_lossy().to_lowercase();
+        if name.starts_with(prefix) && name.ends_with(".jpg") {
+            return Some(e.path());
+        }
+    }
+    if depth > 0 {
+        for e in &entries {
+            if e.path().is_dir() {
+                if let Some(found) = walk(&e.path(), depth - 1, prefix) {
+                    return Some(found);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Arte grande do jogo. O ponto no prefixo deixa de fora a versão desfocada, `library_hero_blur.jpg`.
+fn find_hero(root: &Path, appid: &str) -> Option<String> {
+    let cache = root.join("appcache").join("librarycache");
+    let legacy = cache.join(format!("{appid}_library_hero.jpg"));
+    if legacy.exists() {
+        return Some(legacy.to_string_lossy().into_owned());
+    }
+    walk(&cache.join(appid), 2, "library_hero.").map(|p| p.to_string_lossy().into_owned())
+}
+
 /// Procura a capa no cache local, nos formatos antigo e novo (pasta por jogo).
 fn find_art(root: &Path, appid: &str) -> Option<String> {
     let cache = root.join("appcache").join("librarycache");
     let legacy = cache.join(format!("{appid}_library_600x900.jpg"));
     if legacy.exists() {
         return Some(legacy.to_string_lossy().into_owned());
-    }
-    fn walk(dir: &Path, depth: u8, prefix: &str) -> Option<PathBuf> {
-        let entries: Vec<_> = std::fs::read_dir(dir).ok()?.flatten().collect();
-        for e in &entries {
-            let name = e.file_name().to_string_lossy().to_lowercase();
-            if name.starts_with(prefix) && name.ends_with(".jpg") {
-                return Some(e.path());
-            }
-        }
-        if depth > 0 {
-            for e in &entries {
-                if e.path().is_dir() {
-                    if let Some(found) = walk(&e.path(), depth - 1, prefix) {
-                        return Some(found);
-                    }
-                }
-            }
-        }
-        None
     }
     let dir = cache.join(appid);
     // Da capa vertical para os formatos horizontais, que são cortados no cartão.
@@ -195,6 +207,7 @@ pub fn scan() -> Vec<Game> {
                     watch_dir: steamapps.join("common").join(&m.installdir).to_string_lossy().into_owned(),
                 },
                 art: find_art(&root, &m.appid),
+                hero: find_hero(&root, &m.appid),
             });
         }
     }
@@ -218,6 +231,19 @@ mod tests {
 		"path"		"D:\\SteamLibrary"
 	}
 }"#;
+
+    #[test]
+    fn arte_grande_ignora_a_versao_desfocada() {
+        let root = std::env::temp_dir().join(format!("sofa-hero-{}", std::process::id()));
+        let game = root.join(r"appcache\librarycache\98");
+        std::fs::create_dir_all(game.join("abc123")).unwrap();
+        std::fs::write(game.join("library_hero_blur.jpg"), b"").unwrap();
+        assert_eq!(find_hero(&root, "98"), None);
+        std::fs::write(game.join(r"abc123\library_hero.jpg"), b"").unwrap();
+        assert!(find_hero(&root, "98").unwrap().ends_with(r"abc123\library_hero.jpg"));
+        assert_eq!(find_hero(&root, "sem-pasta"), None);
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn capa_prefere_vertical_e_aceita_pasta_com_hash() {

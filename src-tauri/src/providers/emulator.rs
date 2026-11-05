@@ -156,6 +156,7 @@ fn make_game(emu: &Emulator, title: String, rom: &str) -> Game {
         source: emu.id.clone(),
         launch: Launch::Exec { path: emu.exe.clone(), args: build_args(&emu.args, rom), cwd: cwd_of(&emu.exe) },
         art: None,
+        hero: None,
     }
 }
 
