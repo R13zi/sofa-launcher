@@ -1,5 +1,12 @@
 /** Dados simulados para testar a interface em um navegador comum, fora do Tauri. */
 
+/** Banner de teste em 1920 x 620, com marcas nas bordas para mostrar qualquer corte. */
+const TEST_BANNER = `data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="620"><rect width="1920" height="620" fill="#3d6b73"/>' +
+  '<rect x="6" y="6" width="1908" height="608" fill="none" stroke="#ff5a5a" stroke-width="12"/>' +
+  '<circle cx="960" cy="310" r="220" fill="#e8d9a8"/></svg>',
+)}`;
+
 const games = [
   ["steam:70", "Half-Life", "steam"],
   ["steam:730", "Counter-Strike 2", "steam"],
@@ -10,7 +17,7 @@ const games = [
   ["emu:dolphin:ww", "Wind Waker", "dolphin"],
   ["manual:dusklight", "Dusklight", "manual"],
 ].map(([id, title, source], i) => ({
-  id, title, source, art: null, hero: null as string | null, custom_hero: null as string | null, favorite: i === 0, hidden: false,
+  id, title, source, art: null, hero: (i < 3 ? TEST_BANNER : null) as string | null, custom_hero: null as string | null, favorite: i === 0, hidden: false,
   last_played: i < 3 ? 1000 - i : 0, playtime_secs: i === 0 ? 5400 : 0, launch_file: null as string | null,
 }));
 
@@ -54,7 +61,7 @@ export function mockEmit(event: string, payload: unknown = null): void {
 // Permite simular eventos do backend pelo console do navegador.
 if (typeof window !== "undefined") (window as unknown as { sofaMockEmit: typeof mockEmit }).sofaMockEmit = mockEmit;
 
-let session: { game_id: string; title: string; art: null; hero: null; phase: string } | null = null;
+let session: { game_id: string; title: string; art: null; hero: string | null; phase: string } | null = null;
 
 function setSession(next: typeof session): void {
   session = next;
@@ -70,7 +77,7 @@ export function mockInvoke(command: string, args: Record<string, unknown>): unkn
     case "launch_game": {
       const game = games.find((g) => g.id === args.id);
       if (!game) throw new Error("Jogo não encontrado");
-      const started = { game_id: game.id, title: game.title, art: null, hero: null, phase: "launching" };
+      const started = { game_id: game.id, title: game.title, art: null, hero: game.hero, phase: "launching" };
       setSession(started);
       setTimeout(() => {
         if (session === started) setSession({ ...started, phase: "playing" });

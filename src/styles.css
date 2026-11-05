@@ -10,7 +10,6 @@
   --danger: #ff9d7a;
   --safe: 4vh;
   --gutter: 3.4vw;
-  --art-width: 64.6vw;
   font-size: 2.2vh;
   font-family: "Figtree", "Segoe UI", system-ui, sans-serif;
   color: var(--text);
@@ -67,21 +66,22 @@ button.danger:focus { background: var(--danger); border-color: var(--danger); }
 .icon { width: 1.1em; height: 1.1em; flex: none; vertical-align: -0.15em; margin-right: 0.4em; }
 
 /* Arte grande, compartilhada pelas telas */
-.hero-art { position: absolute; top: 0; right: 0; width: var(--art-width); height: 100%; overflow: hidden; background: var(--panel-2); }
+/* Banners têm proporção 3,1 : 1 (1920 x 620). A área segue essa proporção para não cortar a imagem. */
+.hero-art { position: absolute; top: 0; right: 0; width: 100%; height: min(calc(100vw / 3.1), 57.4vh); overflow: hidden; background: var(--panel-2); }
 .hero-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 /* Sem banner, a capa ampliada ocupa o espaço. */
 .hero-art img.from-cover { filter: blur(1.6rem); transform: scale(1.15); opacity: 0.55; }
 
 /* Tela inicial */
 .home { position: absolute; inset: 0; overflow: hidden; }
-.home .hero-art { height: 64.8vh; }
-.home-side { position: absolute; top: 0; left: 0; width: 39.6vw; height: 64.8vh; background: var(--bg); }
+/* Mantém o texto legível sobre qualquer banner, sem esconder a imagem por inteiro. */
+.hero-scrim { position: absolute; top: 0; left: 0; width: 100%; height: min(calc(100vw / 3.1), 57.4vh); background: linear-gradient(90deg, rgba(12, 10, 9, 0.94) 0%, rgba(12, 10, 9, 0.82) 30%, rgba(12, 10, 9, 0) 62%), linear-gradient(180deg, rgba(12, 10, 9, 0.72) 0%, rgba(12, 10, 9, 0) 20%); }
 .home-nav { position: absolute; top: var(--safe); left: var(--gutter); right: var(--gutter); display: flex; align-items: center; gap: 1.8rem; color: var(--muted); font-size: 1.05rem; white-space: nowrap; }
 .home-brand { font-size: 1.6rem; color: var(--text); }
 .tab { padding-bottom: 0.25rem; border-bottom: 0.17rem solid transparent; }
 .tab.current { color: var(--text); font-weight: 600; border-bottom-color: var(--accent); }
 .home-search { margin-left: auto; padding: 0.2rem 0.7rem; border-radius: 0.4rem; background: var(--bg); color: var(--text); }
-.home-info { position: absolute; left: var(--gutter); top: 19.4vh; width: 36vw; display: flex; flex-direction: column; gap: 0.8rem; }
+.home-info { position: absolute; left: var(--gutter); top: 15.5vh; width: 40vw; display: flex; flex-direction: column; gap: 0.8rem; }
 .home-text { display: flex; flex-direction: column; gap: 0.8rem; }
 .home-eyebrow { color: var(--muted); font-size: 0.97rem; }
 .home-title { margin: 0; font-size: 4.4rem; line-height: 1.02; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
@@ -120,8 +120,9 @@ button.danger:focus { background: var(--danger); border-color: var(--danger); }
 
 /* Detalhes do jogo */
 .detail-screen { position: absolute; inset: 0; overflow: hidden; }
-.detail-panel { position: absolute; top: 0; left: 0; bottom: 0; width: 46.9vw; padding: 5.2vh var(--gutter) 2.2vh; background: var(--bg); display: flex; flex-direction: column; gap: 0.6rem; }
-.detail-title { margin: 0; font-size: 3.7rem; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.detail-screen .hero-art { width: 60vw; height: calc(60vw / 3.1); }
+.detail-panel { position: absolute; top: 0; left: 0; bottom: 0; width: 40vw; padding: 5.2vh var(--gutter) 2.2vh; background: var(--bg); display: flex; flex-direction: column; gap: 0.6rem; }
+.detail-title { margin: 0; font-size: 3.2rem; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .detail-actions { flex: 1; min-height: 0; overflow: hidden auto; display: flex; flex-direction: column; gap: 0.42rem; margin-top: 0.5rem; padding: 0.2rem; scrollbar-width: none; }
 .detail-actions button { width: 100%; text-align: left; flex: none; }
 .detail-actions .primary { font-weight: 600; padding-block: 0.72rem; }
@@ -131,8 +132,7 @@ button.danger:focus { background: var(--danger); border-color: var(--danger); }
 
 /* Iniciando e fundo do jogo */
 .session-full { position: absolute; inset: 0; overflow: hidden; }
-.session-side { position: absolute; top: 0; left: 0; bottom: 0; width: 39.6vw; background: var(--bg); }
-.session-info { position: absolute; left: var(--gutter); top: 34vh; width: 36vw; display: flex; flex-direction: column; gap: 0.9rem; }
+.session-info { position: absolute; left: var(--gutter); right: var(--gutter); top: 61vh; display: flex; flex-direction: column; gap: 0.7rem; }
 .session-info .home-title { margin-bottom: 0.4rem; }
 .session-bar { width: 27vw; height: 0.34rem; border-radius: 0.17rem; background: var(--panel-2); overflow: hidden; }
 .session-bar span { display: block; width: 38%; height: 100%; border-radius: 0.17rem; background: var(--accent); animation: session-slide 1.4s ease-in-out infinite alternate; }

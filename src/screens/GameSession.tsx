@@ -28,7 +28,6 @@ export function GameSession({ session }: { session: SessionInfo }) {
   return (
     <div class="session-full">
       <HeroArt hero={session.hero} art={session.art} />
-      <div class="session-side" />
       <div class="session-info">
         <span class="home-meta">{launching ? "Iniciando" : "Jogando agora"}</span>
         <h1 class={titleClass(session.title)}>{session.title}</h1>

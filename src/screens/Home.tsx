@@ -140,7 +140,7 @@ export function Home() {
   return (
     <div class="home">
       <HeroArt hero={selected?.hero ?? null} art={selected?.art ?? null} />
-      <div class="home-side" />
+      <div class="hero-scrim" />
 
       <div class="home-nav">
         <span class="display home-brand">Sofa</span>
