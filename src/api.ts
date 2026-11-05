@@ -32,6 +32,12 @@ export interface FsEntry {
   dir: boolean;
 }
 
+export interface VolumeState {
+  /** De 0 a 100. */
+  level: number;
+  muted: boolean;
+}
+
 export interface SessionInfo {
   game_id: string;
   title: string;

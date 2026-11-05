@@ -1,5 +1,7 @@
-import { nav, useActions } from "../nav";
+import { ComponentChild } from "preact";
+import { moveFocus, nav, useActions } from "../nav";
 import { Hints } from "./Hints";
+import { stepFocusedSlider } from "./VolumeBar";
 
 export interface MenuItem {
   label: string;
@@ -14,6 +16,8 @@ interface MenuStyle {
   side?: boolean;
   /** Texto pequeno acima do título. */
   eyebrow?: string;
+  /** Controle acima dos itens, como a barra de volume. Recebe esquerda e direita quando em foco. */
+  top?: ComponentChild;
 }
 
 function MenuDialog({ title, message, items, onBack, style }: {
@@ -23,12 +27,21 @@ function MenuDialog({ title, message, items, onBack, style }: {
   onBack?: () => void;
   style?: MenuStyle;
 }) {
-  useActions(onBack ? { back: onBack } : {});
+  useActions({
+    ...(onBack ? { back: onBack } : {}),
+    ...(style?.top
+      ? {
+          left: () => stepFocusedSlider(-1) || moveFocus("left"),
+          right: () => stepFocusedSlider(1) || moveFocus("right"),
+        }
+      : {}),
+  });
   return (
     <div class={style?.side ? "dialog side" : "dialog"}>
       {style?.eyebrow && <span class="dialog-eyebrow">{style.eyebrow}</span>}
       <h1>{title}</h1>
       {message && <p class="muted">{message}</p>}
+      {style?.top}
       <div class="actions">
         {items.map((item, i) => (
           <button

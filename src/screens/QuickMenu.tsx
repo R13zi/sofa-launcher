@@ -1,4 +1,5 @@
-import { call, SessionInfo } from "../api";
+import { call, SessionInfo, VolumeState } from "../api";
+import { VolumeBar } from "../components/VolumeBar";
 import { confirmAction, MenuItem, openMenu, showError } from "../components/Dialog";
 import { openFileBrowser } from "../components/FileBrowser";
 import { openKeyboard } from "../components/VirtualKeyboard";
@@ -49,7 +50,10 @@ function powerMenu(): void {
 
 /** Menu aberto por Start ou pela combinação; com jogo aberto, mostra as opções da sessão primeiro. */
 export async function openQuickMenu(): Promise<void> {
-  const session = await call<SessionInfo | null>("session_info");
+  const [session, volume] = await Promise.all([
+    call<SessionInfo | null>("session_info"),
+    call<VolumeState>("volume_get").catch(() => null),
+  ]);
   const items: MenuItem[] = [];
   const resume = () => call("session_resume").catch(showError);
 
@@ -86,5 +90,9 @@ export async function openQuickMenu(): Promise<void> {
   openMenu(session ? session.title : "Menu", items, undefined, session ? () => {
     nav.pop();
     void resume();
-  } : undefined, { side: true, eyebrow: session ? "Jogando agora" : undefined });
+  } : undefined, {
+    side: true,
+    eyebrow: session ? "Jogando agora" : undefined,
+    top: <VolumeBar initial={volume} />,
+  });
 }

@@ -201,6 +201,21 @@ pub fn clipboard_copy(text: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn volume_get() -> Result<crate::volume::VolumeState, String> {
+    crate::volume::get()
+}
+
+#[tauri::command]
+pub fn volume_set(level: i32) -> Result<(), String> {
+    crate::volume::set_level(level)
+}
+
+#[tauri::command]
+pub fn volume_set_mute(muted: bool) -> Result<(), String> {
+    crate::volume::set_mute(muted)
+}
+
+#[tauri::command]
 pub fn library_dir_get(state: St) -> String {
     state.store.lock().unwrap().library_dir()
 }

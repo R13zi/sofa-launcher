@@ -16,6 +16,10 @@ Feito com Tauri 2, Rust, SDL3 e Preact.
 | Start | Menu |
 | **L3 + R3 (clicar os dois analógicos), segurados por 1,5 s** | Menu rápido, inclusive com um jogo aberto |
 
+### Volume
+
+No topo do menu rápido fica a barra de volume do Windows. Com ela em foco, esquerda e direita ajustam (segurando, o valor acelera) e A liga ou desliga o mudo. Com o mouse, clique ou arraste no trilho, ou use a roda.
+
 ### No teclado virtual
 
 X apaga, Y dá espaço, LB/RB movem o cursor e Start conclui. Para acentuar, aperte o acento e depois a letra.

@@ -46,6 +46,8 @@ const mockImportPlans = [{
 }];
 let importCancelled = false;
 let mockClipboard = "";
+const mockVolume = { level: 62, muted: false };
+if (typeof window !== "undefined") (window as unknown as { sofaVolume: typeof mockVolume }).sofaVolume = mockVolume;
 
 type Listener = (payload: unknown) => void;
 const listeners = new Map<string, Listener[]>();
@@ -117,6 +119,9 @@ export function mockInvoke(command: string, args: Record<string, unknown>): unkn
       { name: "Dusklight", path: "C:\\Games\\Sofa\\iso\\Dusklight", size: 4 * GB, file_count: 2, main_files: ["C:\\Games\\Sofa\\iso\\Dusklight\\disco\\jogo.iso"] },
       { name: "Mario 64", path: "C:\\Games\\Sofa\\iso\\Mario 64", size: GB, file_count: 3200, main_files: [] },
     ];
+    case "volume_get": return { ...mockVolume };
+    case "volume_set": mockVolume.level = args.level as number; return null;
+    case "volume_set_mute": mockVolume.muted = args.muted as boolean; return null;
     case "clipboard_copy": mockClipboard = args.text as string; (window as unknown as { sofaClipboard: string }).sofaClipboard = mockClipboard; return null;
     case "import_scan": return mockImportPlans;
     case "import_cancel": importCancelled = true; return null;

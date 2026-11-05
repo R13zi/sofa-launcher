@@ -114,6 +114,18 @@ button.danger:focus { background: var(--danger); border-color: var(--danger); }
 /* Menu rápido: painel lateral sobre a tela de baixo. */
 .dialog.side { position: absolute; top: 0; right: 0; bottom: 0; width: 37.5vw; min-width: 0; max-width: none; max-height: none; border-radius: 0; padding: 5.2vh var(--gutter) 3vh 2.9vw; }
 .dialog.side .hints { margin-top: auto; justify-content: flex-start; }
+/* Barra de volume: no foco, só a borda acende, para o preenchimento âmbar continuar visível. */
+.volume-bar { display: flex; align-items: center; gap: 0.8rem; width: 100%; flex: none; padding: 0.8rem 1.1rem; background: var(--panel-2); }
+.volume-bar:focus { background: var(--panel-2); color: var(--text); border-color: var(--accent); }
+.volume-bar .icon { width: 1.4rem; height: 1.4rem; flex: none; }
+.volume-label { color: var(--muted); font-size: 0.9rem; }
+.volume-track { flex: 1; height: 0.4rem; border-radius: 0.2rem; background: var(--bg); position: relative; touch-action: none; }
+.volume-track::before { content: ""; position: absolute; inset: -0.7rem 0; }
+.volume-fill { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: var(--accent); transition: width 0.09s linear, background-color 0.12s ease-out; }
+.volume-knob { position: absolute; top: 50%; width: 1rem; height: 1rem; margin: -0.5rem 0 0 -0.5rem; border-radius: 50%; background: var(--text); opacity: 0; transition: left 0.09s linear, opacity 0.12s ease-out; }
+.volume-bar:focus .volume-knob { opacity: 1; }
+.volume-bar.muted .volume-fill { background: var(--muted); opacity: 0.35; }
+.volume-value { min-width: 2.6rem; text-align: right; font-variant-numeric: tabular-nums; font-size: 0.95rem; }
 .dialog-eyebrow { color: var(--muted); font-size: 0.97rem; margin-bottom: -0.6rem; }
 .muted { color: var(--muted); white-space: pre-line; overflow-wrap: anywhere; }
 .error { color: var(--danger); }

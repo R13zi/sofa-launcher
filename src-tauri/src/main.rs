@@ -9,6 +9,7 @@ mod library;
 mod overlay;
 mod providers;
 mod session;
+mod volume;
 
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
@@ -106,6 +107,9 @@ fn main() {
             commands::update_install,
             commands::game_files_list,
             commands::clipboard_copy,
+            commands::volume_get,
+            commands::volume_set,
+            commands::volume_set_mute,
             commands::library_dir_get,
             commands::library_dir_set,
             commands::fs_roots,
