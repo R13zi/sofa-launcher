@@ -1,6 +1,6 @@
 //! Steam: registro → libraryfolders.vdf → appmanifest_*.acf.
 
-use super::{Game, Launch};
+use super::{Game, Launch, UpdateState};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, PartialEq)]
@@ -98,6 +98,24 @@ pub struct Manifest {
     pub appid: String,
     pub name: String,
     pub installdir: String,
+    pub update: UpdateState,
+}
+
+// Bits de StateFlags. O 64 (jogo aberto) e o 512 (atualização pausada) não mudam o estado aqui:
+// pausada continua como pendente.
+const UPDATE_REQUIRED: u32 = 2;
+const FULLY_INSTALLED: u32 = 4;
+const UPDATE_RUNNING: u32 = 256;
+const UPDATE_STARTED: u32 = 1024;
+
+fn update_state(flags: u32, done: u64, total: u64) -> UpdateState {
+    if flags & (UPDATE_RUNNING | UPDATE_STARTED) != 0 && flags & 512 == 0 {
+        UpdateState::Downloading { done, total }
+    } else if flags & UPDATE_REQUIRED != 0 {
+        UpdateState::Pending
+    } else {
+        UpdateState::UpToDate
+    }
 }
 
 /// Ferramentas que a Steam instala como "apps", mas não são jogos.
@@ -115,16 +133,39 @@ pub fn is_game(m: &Manifest) -> bool {
 pub fn parse_manifest(text: &str) -> Option<Manifest> {
     let doc = parse_vdf(text);
     let state = doc.get("AppState")?;
-    // Bit 4 de StateFlags: totalmente instalado.
     let flags: u32 = state.str("StateFlags")?.parse().ok()?;
-    if flags & 4 == 0 {
+    // Durante uma atualização a Steam desliga o bit de "totalmente instalado". O que separa
+    // isso de uma primeira instalação é já existir uma versão instalada (`buildid`).
+    let installed_before = state.str("buildid").is_some_and(|b| !b.is_empty() && b != "0");
+    let updating = flags & (UPDATE_REQUIRED | UPDATE_RUNNING | UPDATE_STARTED) != 0;
+    if flags & FULLY_INSTALLED == 0 && !(updating && installed_before) {
         return None;
     }
+    let bytes = |key: &str| state.str(key).and_then(|v| v.parse().ok()).unwrap_or(0);
     Some(Manifest {
         appid: state.str("appid")?.to_string(),
         name: state.str("name")?.to_string(),
         installdir: state.str("installdir")?.to_string(),
+        update: update_state(flags, bytes("BytesDownloaded"), bytes("BytesToDownload")),
     })
+}
+
+/// Relê o manifesto para acompanhar uma atualização.
+pub fn read_update(manifest: &str) -> Option<UpdateState> {
+    parse_manifest(&std::fs::read_to_string(manifest).ok()?).map(|m| m.update)
+}
+
+/// A Steam só descobre atualizações aberta. Se estiver fechada, abre sem mostrar janela.
+pub fn ensure_running() -> Result<bool, String> {
+    if crate::session::process_running("steam.exe") {
+        return Ok(false);
+    }
+    let root = steam_root().ok_or("A Steam não está instalada.")?;
+    std::process::Command::new(root.join("steam.exe"))
+        .arg("-silent")
+        .spawn()
+        .map_err(|e| format!("Não foi possível abrir a Steam: {e}"))?;
+    Ok(true)
 }
 
 fn steam_root() -> Option<PathBuf> {
@@ -198,6 +239,7 @@ pub fn scan() -> Vec<Game> {
             }
             let Ok(text) = std::fs::read_to_string(entry.path()) else { continue };
             let Some(m) = parse_manifest(&text).filter(is_game) else { continue };
+            let manifest = Some(entry.path().to_string_lossy().into_owned());
             games.push(Game {
                 id: format!("steam:{}", m.appid),
                 title: m.name,
@@ -208,6 +250,8 @@ pub fn scan() -> Vec<Game> {
                 },
                 art: find_art(&root, &m.appid),
                 hero: find_hero(&root, &m.appid),
+                manifest,
+                update: Some(m.update),
             });
         }
     }
@@ -278,8 +322,32 @@ mod tests {
     }
 
     #[test]
-    fn ignora_download_incompleto() {
+    fn ignora_primeira_instalacao_incompleta() {
         assert!(parse_manifest(&manifest(1026, "70", "Half-Life")).is_none());
+    }
+
+    fn manifest_with_build(flags: u32, buildid: &str, done: u64, total: u64) -> String {
+        manifest(flags, "70", "Half-Life").replacen(
+            "\"installdir\"",
+            &format!("\"buildid\"\t\t\"{buildid}\"\n\t\"BytesDownloaded\"\t\t\"{done}\"\n\t\"BytesToDownload\"\t\t\"{total}\"\n\t\"installdir\""),
+            1,
+        )
+    }
+
+    #[test]
+    fn le_estado_de_atualizacao() {
+        let state = |flags, done, total| parse_manifest(&manifest_with_build(flags, "123", done, total)).map(|m| m.update);
+        assert_eq!(state(4, 0, 0), Some(UpdateState::UpToDate));
+        assert_eq!(state(6, 0, 0), Some(UpdateState::Pending));
+        // Atualizando, o jogo continua na biblioteca, com o progresso.
+        assert_eq!(state(1026, 500, 2000), Some(UpdateState::Downloading { done: 500, total: 2000 }));
+        assert_eq!(state(1028, 0, 0), Some(UpdateState::Downloading { done: 0, total: 0 }));
+        assert_eq!(state(4 | 2 | 256, 7, 9), Some(UpdateState::Downloading { done: 7, total: 9 }));
+        // Pausada continua pendente; jogo aberto (64) não muda nada.
+        assert_eq!(state(4 | 2 | 1024 | 512, 7, 9), Some(UpdateState::Pending));
+        assert_eq!(state(68, 0, 0), Some(UpdateState::UpToDate));
+        // Primeira instalação: sem versão anterior, continua de fora.
+        assert!(parse_manifest(&manifest_with_build(1026, "0", 1, 2)).is_none());
     }
 
     #[test]

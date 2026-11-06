@@ -406,6 +406,35 @@ fn with_launch_file(game: &Game, state: &AppState) -> Result<Launch, String> {
     })
 }
 
+/// Abre um endereço de loja (`com.epicgames.launcher://`) pelo Windows. Usado só para procurar
+/// atualizações; o início dos jogos continua no `launch` abaixo, sem mudanças.
+pub fn open_uri(uri: &str) -> Result<(), String> {
+    let result = unsafe {
+        ShellExecuteW(None, &HSTRING::from("open"), &HSTRING::from(uri), PCWSTR::null(), PCWSTR::null(), SW_SHOWNORMAL)
+    };
+    if result.0 as isize <= 32 {
+        return Err(format!("Não foi possível abrir {uri}. A loja está instalada?"));
+    }
+    Ok(())
+}
+
+/// Se há um processo com este nome de executável, sem diferenciar maiúsculas.
+pub fn process_running(exe: &str) -> bool {
+    unsafe {
+        let Ok(snapshot) = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) else { return false };
+        let mut entry = PROCESSENTRY32W { dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32, ..Default::default() };
+        let mut ok = Process32FirstW(snapshot, &mut entry).is_ok();
+        let mut found = false;
+        while ok && !found {
+            let len = entry.szExeFile.iter().position(|&c| c == 0).unwrap_or(entry.szExeFile.len());
+            found = String::from_utf16_lossy(&entry.szExeFile[..len]).eq_ignore_ascii_case(exe);
+            ok = Process32NextW(snapshot, &mut entry).is_ok();
+        }
+        let _ = CloseHandle(snapshot);
+        found
+    }
+}
+
 fn launch(launch: &Launch) -> Result<Target, String> {
     match launch {
         Launch::Uri { uri, watch_dir } => {

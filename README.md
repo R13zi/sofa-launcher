@@ -123,6 +123,15 @@ Sem arquivo escolhido, o Sofa procura em `iso\` a pasta com o mesmo nome do jogo
 
 **O que continua sendo com você:** firmware, chaves e controles de cada emulador, dependências como Visual C++ e DirectX, e atualizações do Cemu que não venham em `.wua`.
 
+## Atualizações de jogos
+
+Nos detalhes de um jogo da Steam ou da Epic, uma linha mostra o estado dele: "Atualizado", "Atualização disponível", "Atualizando · 42% · 1,2 GB de 2,8 GB" ou, na Epic, a versão instalada. O cartão na tela inicial ganha um **↓** quando há atualização pendente ou em andamento.
+
+- **Procurar atualizações:** na Steam, abre a Steam em segundo plano se ela estiver fechada, e ela confere sozinha. Na Epic, pede ao launcher dela para verificar.
+- **Atualizar e jogar:** com atualização pendente na Steam, a tela "Iniciando" mostra o progresso real do download até o jogo abrir.
+
+Jogos de emulador e `.exe` avulsos não têm atualização pelo Sofa.
+
 ## Instalar e atualizar
 
 Baixe o `Sofa_x.y.z_x64-setup.exe` em [Releases](https://github.com/R13zi/sofa-launcher/releases/latest). Depois de instalado, as atualizações saem por Menu → Procurar atualizações do Sofa, só com o controle.
@@ -187,4 +196,5 @@ Os dados ficam em `%APPDATA%\Sofa`.
 - **Jogos em janela:** a barra de tarefas pode aparecer na base da tela.
 - **Launchers em outra pasta:** um jogo da Steam que abre um launcher instalado em outro lugar (como o da Rockstar ou da EA) não é detectado, e a sessão termina em 180 s mesmo com o jogo aberto.
 - **Janelas de administrador:** o modo desktop não consegue controlá-las.
+- **Atualizações na Epic:** o Sofa só sabe que há atualização depois que a Epic verifica; se a atualização automática estiver desligada nela, a janela da Epic pode aparecer.
 - **Steam Input:** a configuração de desktop da Steam pode interferir no controle.

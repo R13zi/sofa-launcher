@@ -1,6 +1,6 @@
 //! Epic Games: manifestos JSON (*.item) em ProgramData.
 
-use super::{Game, Launch};
+use super::{Game, Launch, UpdateState};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -15,6 +15,23 @@ struct Item {
     app_categories: Vec<String>,
     #[serde(default, rename = "bIsIncompleteInstall")]
     incomplete: bool,
+    #[serde(default)]
+    app_version_string: String,
+}
+
+fn version_state(version: &str) -> Option<UpdateState> {
+    (!version.is_empty()).then(|| UpdateState::Version { version: version.to_string() })
+}
+
+/// Relê o manifesto: a versão muda quando a Epic termina uma atualização.
+pub fn read_update(manifest: &str) -> Option<UpdateState> {
+    let item: Item = serde_json::from_str(&std::fs::read_to_string(manifest).ok()?).ok()?;
+    version_state(&item.app_version_string)
+}
+
+/// Pede ao launcher da Epic que procure atualizações do jogo, sem abrir o jogo.
+pub fn update_check_uri(launch_uri: &str) -> String {
+    launch_uri.replace("action=launch", "action=updatecheck")
 }
 
 pub fn parse_item(text: &str) -> Option<Game> {
@@ -36,6 +53,8 @@ pub fn parse_item(text: &str) -> Option<Game> {
         },
         art: None,
         hero: None,
+        manifest: None,
+        update: version_state(&item.app_version_string),
     })
 }
 
@@ -46,8 +65,11 @@ pub fn scan() -> Vec<Game> {
     entries
         .flatten()
         .filter(|e| e.path().extension().is_some_and(|x| x.eq_ignore_ascii_case("item")))
-        .filter_map(|e| std::fs::read_to_string(e.path()).ok())
-        .filter_map(|t| parse_item(&t))
+        .filter_map(|e| {
+            let mut game = parse_item(&std::fs::read_to_string(e.path()).ok()?)?;
+            game.manifest = Some(e.path().to_string_lossy().into_owned());
+            Some(game)
+        })
         .collect()
 }
 
@@ -72,6 +94,18 @@ mod tests {
             }
             _ => panic!("esperava Uri"),
         }
+    }
+
+    #[test]
+    fn le_a_versao_e_monta_a_verificacao() {
+        let text = item(r#""games""#, false).replace(r#""LaunchExecutable""#, r#""AppVersionString":"1.2.3","LaunchExecutable""#);
+        let g = parse_item(&text).unwrap();
+        assert_eq!(g.update, Some(UpdateState::Version { version: "1.2.3".into() }));
+        assert_eq!(parse_item(&item(r#""games""#, false)).unwrap().update, None);
+        assert_eq!(
+            update_check_uri("com.epicgames.launcher://apps/ns1%3Aitem1%3AApp1?action=launch&silent=true"),
+            "com.epicgames.launcher://apps/ns1%3Aitem1%3AApp1?action=updatecheck&silent=true"
+        );
     }
 
     #[test]

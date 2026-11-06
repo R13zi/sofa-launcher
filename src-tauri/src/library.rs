@@ -49,6 +49,8 @@ pub struct GameView {
     pub last_played: u64,
     pub playtime_secs: u64,
     pub launch_file: Option<String>,
+    /// Estado de atualização da Steam ou versão da Epic, lido na última varredura.
+    pub update: Option<crate::providers::UpdateState>,
 }
 
 pub fn data_dir() -> PathBuf {
@@ -133,6 +135,7 @@ impl Store {
             last_played: meta.last_played,
             playtime_secs: meta.playtime_secs,
             launch_file: meta.launch_file,
+            update: game.update.clone(),
         }
     }
 }
@@ -234,6 +237,8 @@ mod tests {
             launch: crate::providers::Launch::Uri { uri: String::new(), watch_dir: String::new() },
             art: Some("capa-steam.jpg".into()),
             hero: Some("steam.jpg".into()),
+            manifest: None,
+            update: None,
         };
         let mut store = Store::default();
         assert_eq!(store.view(&game, None, None).hero.as_deref(), Some("steam.jpg"));

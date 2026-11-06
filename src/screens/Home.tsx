@@ -9,6 +9,7 @@ import { afterRender, focusFirst, moveFocus, nav, useActions } from "../nav";
 import { GameDetail } from "./GameDetail";
 import { buildTabs, cycleTab, favoriteGames, filterGames, recentGames } from "./library";
 import { openQuickMenu } from "./QuickMenu";
+import { needsUpdate } from "./updateFormat";
 
 function GameCard({ game, autofocus, onSelect }: { game: GameView; autofocus?: boolean; onSelect: () => void }) {
   const [broken, setBroken] = useState(false);
@@ -26,6 +27,7 @@ function GameCard({ game, autofocus, onSelect }: { game: GameView; autofocus?: b
     >
       {src && <img src={src} alt="" loading="lazy" onError={() => setBroken(true)} />}
       {game.favorite && <span class="badge">★</span>}
+      {needsUpdate(game.update) && <span class="badge update" title="Atualização pendente">↓</span>}
       <span class="name">{game.title}</span>
     </button>
   );

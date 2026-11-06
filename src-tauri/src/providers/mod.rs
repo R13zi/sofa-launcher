@@ -22,4 +22,22 @@ pub struct Game {
     pub art: Option<String>,
     /// Arte grande para o fundo das telas, quando a origem tiver uma.
     pub hero: Option<String>,
+    /// Arquivo da loja que descreve a instalação (`.acf` da Steam, `.item` da Epic), relido para
+    /// acompanhar atualizações.
+    pub manifest: Option<String>,
+    /// Estado de atualização no momento da varredura. Só Steam e Epic têm.
+    pub update: Option<UpdateState>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum UpdateState {
+    /// Steam: nada pendente.
+    UpToDate,
+    /// Steam: há atualização, ainda não baixando.
+    Pending,
+    /// Steam: baixando ou instalando a atualização.
+    Downloading { done: u64, total: u64 },
+    /// Epic: só a versão instalada é conhecida; quem verifica é o launcher dela.
+    Version { version: String },
 }

@@ -107,6 +107,8 @@ fn main() {
             commands::update_install,
             commands::game_files_list,
             commands::clipboard_copy,
+            commands::game_update_status,
+            commands::game_update_check,
             commands::volume_get,
             commands::volume_set,
             commands::volume_set_mute,

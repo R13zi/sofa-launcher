@@ -3,7 +3,7 @@ import { GameView } from "../api";
 import { buildTabs, cycleTab, favoriteGames, filterGames, matchesSearch, recentGames } from "./library";
 
 const game = (id: string, source: string, extra: Partial<GameView> = {}): GameView => ({
-  id, title: id, source, art: null, hero: null, custom_hero: null, favorite: false, hidden: false, last_played: 0, playtime_secs: 0, launch_file: null, ...extra,
+  id, title: id, source, art: null, hero: null, custom_hero: null, favorite: false, hidden: false, last_played: 0, playtime_secs: 0, launch_file: null, update: null, ...extra,
 });
 
 describe("biblioteca", () => {

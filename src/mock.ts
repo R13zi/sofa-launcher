@@ -1,5 +1,7 @@
 /** Dados simulados para testar a interface em um navegador comum, fora do Tauri. */
 
+import type { UpdateState } from "./api";
+
 /** Banner de teste em 1920 x 620, com marcas nas bordas para mostrar qualquer corte. */
 const TEST_BANNER = `data:image/svg+xml,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="620"><rect width="1920" height="620" fill="#3d6b73"/>' +
@@ -19,7 +21,12 @@ const games = [
 ].map(([id, title, source], i) => ({
   id, title, source, art: null, hero: (i < 3 ? TEST_BANNER : null) as string | null, custom_hero: null as string | null, favorite: i === 0, hidden: false,
   last_played: i < 3 ? 1000 - i : 0, playtime_secs: i === 0 ? 5400 : 0, launch_file: null as string | null,
+  update: (source === "steam" ? { state: i === 1 ? "pending" : "up_to_date" } : source === "epic" ? { state: "version", version: "1.0.4" } : null) as UpdateState | null,
 }));
+
+/** Counter-Strike 2 simula uma atualização: começa a baixar ao abrir o jogo. */
+const mockDownload = { done: 0, total: 2.8 * 1024 ** 3 };
+let epicVersion = "1.0.4";
 
 const emulators = [
   { id: "cemu", name: "Cemu", kind: "cemu", exe: "C:\\Cemu\\Cemu.exe", args: ["-f", "-g", "{rom}"], rom_dirs: ["C:\\Cemu\\jogos"], exts: ["wua", "wud", "wux", "rpx"] },
@@ -81,10 +88,32 @@ export function mockInvoke(command: string, args: Record<string, unknown>): unkn
       if (!game) throw new Error("Jogo não encontrado");
       const started = { game_id: game.id, title: game.title, art: null, hero: game.hero, phase: "launching" };
       setSession(started);
+      const updating = game.update?.state === "pending";
+      if (updating) {
+        // Baixa em cerca de 6 s, como a Steam faria antes de abrir o jogo.
+        game.update = { state: "downloading", done: 0, total: mockDownload.total };
+        const tick = setInterval(() => {
+          mockDownload.done = Math.min(mockDownload.total, mockDownload.done + mockDownload.total / 12);
+          game.update = mockDownload.done >= mockDownload.total
+            ? { state: "up_to_date" }
+            : { state: "downloading", done: mockDownload.done, total: mockDownload.total };
+          if (game.update.state === "up_to_date") clearInterval(tick);
+        }, 500);
+      }
       setTimeout(() => {
         if (session === started) setSession({ ...started, phase: "playing" });
-      }, 1500);
+      }, updating ? 6800 : 1500);
       return null;
+    }
+    case "game_update_status": {
+      const game = games.find((g) => g.id === args.id);
+      if (game?.source === "epic") return { state: "version", version: epicVersion };
+      return game?.update ?? null;
+    }
+    case "game_update_check": {
+      const game = games.find((g) => g.id === args.id);
+      if (game?.source === "epic") setTimeout(() => (epicVersion = "1.0.5"), 2000);
+      return game?.source === "steam";
     }
     case "session_cancel": case "session_close": setSession(null); return null;
     case "reduce_animations_get": return false;

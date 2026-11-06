@@ -55,6 +55,8 @@ pub fn to_game(m: &ManualGame) -> Game {
         },
         art: None,
         hero: None,
+        manifest: None,
+        update: None,
     }
 }
 

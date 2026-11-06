@@ -138,6 +138,14 @@ button.danger:focus { background: var(--danger); border-color: var(--danger); }
 .detail-actions { flex: 1; min-height: 0; overflow: hidden auto; display: flex; flex-direction: column; gap: 0.42rem; margin-top: 0.5rem; padding: 0.2rem; scrollbar-width: none; }
 .detail-actions button { width: 100%; text-align: left; flex: none; }
 .detail-actions .primary { font-weight: 600; padding-block: 0.72rem; }
+.update-line { display: flex; flex-direction: column; gap: 0.35rem; color: var(--muted); font-size: 1rem; }
+.update-line.pending { color: var(--accent); }
+.update-bar { width: 100%; max-width: 22rem; height: 0.3rem; border-radius: 0.15rem; background: var(--panel-2); overflow: hidden; }
+.update-bar span { display: block; height: 100%; background: var(--accent); transition: width 0.4s linear; }
+.update-note { margin: 0; color: var(--muted); font-size: 0.92rem; max-width: 30rem; }
+.card .badge.update { right: auto; left: 0.35rem; color: var(--accent); }
+.session-bar.determinate span { animation: none; transition: width 0.4s linear; }
+:root.no-anim .session-bar.determinate span { animation: none !important; }
 .detail-panel .hints { justify-content: flex-start; padding-top: 0.5rem; }
 .detail-cover { position: absolute; right: var(--gutter); bottom: 5.2vh; height: 41.7vh; aspect-ratio: 2 / 3; border-radius: 0.6rem; overflow: hidden; background: var(--panel-2); display: flex; align-items: flex-end; padding: 0.75rem; }
 .detail-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }

@@ -200,6 +200,36 @@ pub fn clipboard_copy(text: String) -> Result<(), String> {
     overlay::copy_to_clipboard(&text)
 }
 
+fn find_game(state: &St, id: &str) -> Result<crate::providers::Game, String> {
+    state.games.lock().unwrap().iter().find(|g| g.id == id).cloned().ok_or_else(|| "Jogo não encontrado.".to_string())
+}
+
+/// Estado de atualização lido agora do manifesto da loja, para acompanhar o progresso.
+#[tauri::command]
+pub fn game_update_status(state: St, id: String) -> Result<Option<crate::providers::UpdateState>, String> {
+    let game = find_game(&state, &id)?;
+    let Some(manifest) = game.manifest.as_deref() else { return Ok(None) };
+    Ok(match game.source.as_str() {
+        "steam" => crate::providers::steam::read_update(manifest),
+        "epic" => crate::providers::epic::read_update(manifest),
+        _ => None,
+    })
+}
+
+/// Pede à loja que procure atualizações. Devolve se foi preciso abrir a Steam.
+#[tauri::command]
+pub fn game_update_check(state: St, id: String) -> Result<bool, String> {
+    let game = find_game(&state, &id)?;
+    match (game.source.as_str(), &game.launch) {
+        ("steam", _) => crate::providers::steam::ensure_running(),
+        ("epic", crate::providers::Launch::Uri { uri, .. }) => {
+            session::open_uri(&crate::providers::epic::update_check_uri(uri))?;
+            Ok(false)
+        }
+        _ => Err("Este jogo não tem uma loja para procurar atualizações.".into()),
+    }
+}
+
 #[tauri::command]
 pub fn volume_get() -> Result<crate::volume::VolumeState, String> {
     crate::volume::get()

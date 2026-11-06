@@ -14,7 +14,14 @@ export interface GameView {
   last_played: number;
   playtime_secs: number;
   launch_file: string | null;
+  update: UpdateState | null;
 }
+
+export type UpdateState =
+  | { state: "up_to_date" }
+  | { state: "pending" }
+  | { state: "downloading"; done: number; total: number }
+  | { state: "version"; version: string };
 
 export interface Emulator {
   id: string;
