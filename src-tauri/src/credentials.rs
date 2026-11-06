@@ -1,12 +1,23 @@
-//! Guarda a chave do SteamGridDB no Gerenciador de Credenciais do Windows.
+//! Guarda chaves no Gerenciador de Credenciais do Windows.
 
 use windows::core::{HSTRING, PWSTR};
 use windows::Win32::Security::Credentials::*;
 
-const TARGET: &str = "Sofa/SteamGridDB";
+/// Chave do SteamGridDB, usada para buscar capas.
+pub const ART: &str = "Sofa/SteamGridDB";
+/// Chave da API Steam, usada para listar os jogos da conta.
+pub const STEAM: &str = "Sofa/SteamWebAPI";
 
 pub fn save(secret: &str) -> Result<(), String> {
-    let target = HSTRING::from(TARGET);
+    save_to(ART, secret)
+}
+
+pub fn load() -> Option<String> {
+    load_from(ART)
+}
+
+pub fn save_to(target: &str, secret: &str) -> Result<(), String> {
+    let target = HSTRING::from(target);
     let mut blob = secret.as_bytes().to_vec();
     let credential = CREDENTIALW {
         Type: CRED_TYPE_GENERIC,
@@ -19,8 +30,8 @@ pub fn save(secret: &str) -> Result<(), String> {
     unsafe { CredWriteW(&credential, 0) }.map_err(|e| e.to_string())
 }
 
-pub fn load() -> Option<String> {
-    let target = HSTRING::from(TARGET);
+pub fn load_from(target: &str) -> Option<String> {
+    let target = HSTRING::from(target);
     let mut ptr: *mut CREDENTIALW = std::ptr::null_mut();
     unsafe {
         CredReadW(&target, CRED_TYPE_GENERIC, None, &mut ptr).ok()?;

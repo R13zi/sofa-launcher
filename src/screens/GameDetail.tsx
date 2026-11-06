@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
-import { artUrl, call, formatPlaytime, GameView, on, sourceLabel, UpdateState } from "../api";
-import { describeUpdate, needsUpdate, updateProgress } from "./updateFormat";
+import { artUrl, call, formatPlaytime, GameSize, GameView, on, sourceLabel, UpdateState } from "../api";
+import { uninstallGame } from "./storeActions";
+import { describeUpdate, isInstalling, needsUpdate, updateProgress } from "./updateFormat";
 import { confirmAction, openMenu, showError } from "../components/Dialog";
 import { openFileBrowser } from "../components/FileBrowser";
 import { HeroArt } from "../components/HeroArt";
@@ -44,6 +45,8 @@ export function GameDetail({ gameId }: { gameId: string }) {
   const [checkedVersion, setCheckedVersion] = useState<string | null>(null);
   const update = useUpdateStatus(gameId, game?.source, game?.update ?? null);
 
+  const [removable, setRemovable] = useState(false);
+
   const load = async () => {
     const games = await call<GameView[]>("library_list");
     const found = games.find((g) => g.id === gameId) ?? null;
@@ -54,6 +57,7 @@ export function GameDetail({ gameId }: { gameId: string }) {
   useEffect(() => {
     void load();
     void on("library-changed", load);
+    void call<GameSize | null>("game_size", { id: gameId }).then((s) => setRemovable(!!s?.removable)).catch(() => {});
   }, []);
 
   if (!game) return <p class="muted">Carregando…</p>;
@@ -68,6 +72,7 @@ export function GameDetail({ gameId }: { gameId: string }) {
   };
 
   const cover = artUrl(game.art);
+  const installing = isInstalling(update);
   const updateFirst = game.source === "steam" && needsUpdate(update);
   const newVersion = checkedVersion && update?.state === "version" && update.version !== checkedVersion ? update.version : null;
 
@@ -104,9 +109,10 @@ export function GameDetail({ gameId }: { gameId: string }) {
           <button
             class="primary"
             data-autofocus
+            disabled={installing}
             onClick={() => call("launch_game", { id: game.id }).catch(showError)}
           >
-            {updateFirst ? "Atualizar e jogar" : "Jogar"}
+            {installing ? "Instalando…" : updateFirst ? "Atualizar e jogar" : "Jogar"}
           </button>
           {hasStore(game.source) && <button onClick={() => void checkUpdates()}>Procurar atualizações</button>}
           <button onClick={() => change("set_favorite", { value: !game.favorite })}>
@@ -172,7 +178,12 @@ export function GameDetail({ gameId }: { gameId: string }) {
           <button onClick={() => change("set_hidden", { value: !game.hidden })}>
             {game.hidden ? "Mostrar na biblioteca" : "Ocultar da biblioteca"}
           </button>
-          {game.source === "manual" && (
+          {removable && (
+            <button class="danger" onClick={() => void uninstallGame(game.id, () => nav.pop())}>
+              {installing ? "Cancelar instalação" : "Desinstalar"}
+            </button>
+          )}
+          {game.source === "manual" && !removable && (
             <button
               class="danger"
               onClick={() => confirmAction(

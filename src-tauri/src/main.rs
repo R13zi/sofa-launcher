@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod art;
+mod battery;
 mod commands;
 mod credentials;
 mod importer;
@@ -9,6 +10,7 @@ mod library;
 mod overlay;
 mod providers;
 mod session;
+mod storage;
 mod volume;
 
 use std::sync::atomic::AtomicBool;
@@ -109,6 +111,17 @@ fn main() {
             commands::clipboard_copy,
             commands::game_update_status,
             commands::game_update_check,
+            commands::controller_battery,
+            commands::storage_overview,
+            commands::game_size,
+            commands::game_uninstall,
+            commands::store_installable,
+            commands::steam_install_targets,
+            commands::steam_install,
+            commands::epic_install,
+            commands::epic_open_library,
+            commands::steam_key_status,
+            commands::steam_key_save,
             commands::volume_get,
             commands::volume_set,
             commands::volume_set_mute,

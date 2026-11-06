@@ -420,19 +420,53 @@ pub fn open_uri(uri: &str) -> Result<(), String> {
 
 /// Se há um processo com este nome de executável, sem diferenciar maiúsculas.
 pub fn process_running(exe: &str) -> bool {
+    !process_ids(exe).is_empty()
+}
+
+/// Processos com este nome de executável, sem diferenciar maiúsculas.
+pub fn process_ids(exe: &str) -> Vec<u32> {
+    let mut pids = vec![];
     unsafe {
-        let Ok(snapshot) = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) else { return false };
+        let Ok(snapshot) = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) else { return pids };
         let mut entry = PROCESSENTRY32W { dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32, ..Default::default() };
         let mut ok = Process32FirstW(snapshot, &mut entry).is_ok();
-        let mut found = false;
-        while ok && !found {
+        while ok {
             let len = entry.szExeFile.iter().position(|&c| c == 0).unwrap_or(entry.szExeFile.len());
-            found = String::from_utf16_lossy(&entry.szExeFile[..len]).eq_ignore_ascii_case(exe);
+            if String::from_utf16_lossy(&entry.szExeFile[..len]).eq_ignore_ascii_case(exe) {
+                pids.push(entry.th32ProcessID);
+            }
             ok = Process32NextW(snapshot, &mut entry).is_ok();
         }
         let _ = CloseHandle(snapshot);
-        found
     }
+    pids
+}
+
+/// Caminho completo do executável de um processo aberto com este nome.
+pub fn process_path(exe: &str) -> Option<String> {
+    process_ids(exe).into_iter().find_map(|pid| unsafe {
+        let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
+        let path = image_path(process);
+        let _ = CloseHandle(process);
+        path
+    })
+}
+
+/// Encerra à força todos os processos com este nome.
+pub fn kill_processes(exe: &str) {
+    terminate(&process_ids(exe));
+}
+
+/// Espera os processos com este nome saírem. Devolve `false` se o tempo acabar.
+pub fn wait_exit(exe: &str, timeout: Duration) -> bool {
+    let start = Instant::now();
+    while process_running(exe) {
+        if start.elapsed() > timeout {
+            return false;
+        }
+        std::thread::sleep(Duration::from_millis(300));
+    }
+    true
 }
 
 fn launch(launch: &Launch) -> Result<Target, String> {

@@ -1,4 +1,5 @@
 import { call, SessionInfo, VolumeState } from "../api";
+import { BatteryIndicator } from "../components/Battery";
 import { VolumeBar } from "../components/VolumeBar";
 import { confirmAction, MenuItem, openMenu, showError } from "../components/Dialog";
 import { openFileBrowser } from "../components/FileBrowser";
@@ -8,6 +9,7 @@ import { Emulators } from "./Emulators";
 import { openGameFilesScreen } from "./GameFiles";
 import { openImport } from "./ImportScreen";
 import { Settings } from "./Settings";
+import { openStorage } from "./Storage";
 import { checkForUpdates } from "./Updates";
 
 /** Recarrega a varredura e avisa as telas abertas. */
@@ -76,6 +78,7 @@ export async function openQuickMenu(): Promise<void> {
       { label: "Importar jogos (SSD ou pendrive)", onClick: () => void openImport() },
       { label: "Adicionar jogo (.exe)", onClick: addGame },
       { label: "Emuladores", onClick: () => nav.push(<Emulators />) },
+      { label: "Armazenamento", onClick: openStorage },
       { label: "Atualizar biblioteca", onClick: () => refreshLibrary().catch(showError) },
       { label: "Procurar atualizações do Sofa", onClick: () => void checkForUpdates() },
     );
@@ -93,6 +96,11 @@ export async function openQuickMenu(): Promise<void> {
   } : undefined, {
     side: true,
     eyebrow: session ? "Jogando agora" : undefined,
-    top: <VolumeBar initial={volume} />,
+    top: (
+      <>
+        <BatteryIndicator withName />
+        <VolumeBar initial={volume} />
+      </>
+    ),
   });
 }

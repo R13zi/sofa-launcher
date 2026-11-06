@@ -213,3 +213,44 @@ button.danger:focus { background: var(--danger); border-color: var(--danger); }
 :root.no-anim *, :root.no-anim *::before, :root.no-anim *::after { animation: none !important; transition: none !important; }
 /* A barra de "Iniciando" indica atividade e continua em movimento mesmo sem as transições. */
 :root.no-anim .session-bar span { animation: session-slide 1.4s ease-in-out infinite alternate !important; }
+
+/* Bateria do controle */
+.battery { display: inline-flex; align-items: center; gap: 0.45rem; color: var(--muted); font-size: 0.95rem; flex: none; }
+.battery .icon { width: 1.6rem; height: 1.6rem; }
+.battery-level { fill: currentColor; }
+.battery.low { color: var(--danger); }
+.battery-name { color: var(--muted); }
+.battery-value { color: var(--text); font-variant-numeric: tabular-nums; }
+.battery.low .battery-value { color: var(--danger); }
+.dialog.side .battery { padding: 0 0.2rem; }
+.home-status { margin-left: auto; display: flex; align-items: center; }
+.home-search + .home-status { margin-left: 1.5rem; }
+
+/* Aviso de bateria baixa */
+.toast-host { position: fixed; top: calc(var(--safe) + 3.2rem); right: var(--gutter); z-index: 50; animation: toast-in 0.25s ease-out; }
+.toast { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.3rem; border-radius: 0.8rem; background: var(--panel-2); border-left: 0.3rem solid var(--danger); box-shadow: 0 0.6rem 2rem rgb(0 0 0 / 0.5); max-width: 28rem; }
+.toast .icon { width: 2.4rem; height: 2.4rem; color: var(--danger); flex: none; }
+.toast strong { display: block; font-size: 1.05rem; }
+.toast span { color: var(--muted); font-size: 0.92rem; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-0.6rem); } }
+:root.toast-window, :root.toast-window body, :root.toast-window #app { background: var(--panel-2); font-size: 16px; }
+:root.toast-window .toast { height: 100%; box-sizing: border-box; max-width: none; border-radius: 0; box-shadow: none; }
+
+/* Armazenamento */
+.storage { gap: 0.45rem; }
+.storage-drive { display: flex; flex-direction: column; gap: 0.45rem; margin-bottom: 1.4rem; }
+.storage-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.storage-head h2 { margin: 0; color: var(--text); }
+.storage-bar { display: flex; height: 0.7rem; border-radius: 0.35rem; background: var(--panel-2); overflow: hidden; }
+.storage-games { background: var(--accent); }
+.storage-other { background: var(--muted); opacity: 0.45; }
+.storage-legend { display: flex; gap: 1.6rem; font-size: 0.9rem; margin-bottom: 0.3rem; }
+.dot { display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 50%; margin-right: 0.3rem; }
+.dot.games { background: var(--accent); }
+.dot.other { background: var(--muted); opacity: 0.6; }
+
+/* Aba Instalar e esperas */
+.card .badge.install { color: var(--accent); }
+.card.action-card { border-style: dashed; border-color: var(--muted); }
+.card.action-card:focus { border-color: var(--accent); }
+.dialog.busy .session-bar { width: 100%; }

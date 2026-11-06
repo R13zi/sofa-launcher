@@ -5,6 +5,7 @@ import { render } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { call, on, SessionInfo } from "./api";
 import { showError } from "./components/Dialog";
+import { BatteryToastCard, showBatteryToast, ToastHost } from "./components/Toast";
 import { startInput } from "./input";
 import { nav, NavRoot, setAnimationsEnabled } from "./nav";
 import { DesktopOverlay } from "./screens/DesktopOverlay";
@@ -16,6 +17,8 @@ import "./styles.css";
 
 const isOverlay = location.hash === "#overlay";
 if (isOverlay) document.documentElement.classList.add("overlay-window");
+/** Janela do aviso de bateria por cima do jogo: `#toast-15`. */
+const toastPercent = /^#toast-(\d+)$/.exec(location.hash)?.[1];
 
 /** Tela base: a inicial ou, com um jogo aberto, a de sessão. */
 function Root() {
@@ -29,6 +32,7 @@ function Root() {
     });
     void on<string>("session-failed", showError);
     void on<{ drive: string; count: number }>("import-found", (found) => void promptImport(found).catch(showError));
+    void on<number>("battery-low", showBatteryToast);
   }, []);
   return session ? <GameSession session={session} /> : <Home />;
 }
@@ -49,7 +53,17 @@ function App() {
       void openQuickMenu();
     });
   }, []);
-  return <NavRoot root={isOverlay ? <DesktopOverlay /> : <Root />} />;
+  return (
+    <>
+      <NavRoot root={isOverlay ? <DesktopOverlay /> : <Root />} />
+      {!isOverlay && <ToastHost />}
+    </>
+  );
 }
 
-render(<App />, document.getElementById("app")!);
+if (toastPercent !== undefined) {
+  document.documentElement.classList.add("toast-window");
+  render(<BatteryToastCard percent={Number(toastPercent)} />, document.getElementById("app")!);
+} else {
+  render(<App />, document.getElementById("app")!);
+}

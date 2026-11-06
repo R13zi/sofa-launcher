@@ -21,7 +21,53 @@ export type UpdateState =
   | { state: "up_to_date" }
   | { state: "pending" }
   | { state: "downloading"; done: number; total: number }
+  | { state: "installing"; done: number; total: number }
   | { state: "version"; version: string };
+
+export interface GameSize {
+  id: string;
+  title: string;
+  source: string;
+  art: string | null;
+  size: number;
+  /** O Sofa sabe apagar este jogo. */
+  removable: boolean;
+}
+
+export interface DriveView {
+  root: string;
+  total: number;
+  free: number;
+  games: GameSize[];
+}
+
+export interface Installable {
+  id: string;
+  title: string;
+  source: "steam" | "epic";
+  art: string | null;
+}
+
+export interface InstallList {
+  steam: Installable[];
+  steam_error: string | null;
+  steam_needs_key: boolean;
+  epic: Installable[];
+}
+
+export interface SteamLibrary {
+  path: string;
+  free: number;
+  total: number;
+  /** Disco sem biblioteca da Steam: ela é criada na instalação. */
+  new: boolean;
+}
+
+export interface InstallTargets {
+  /** Tamanho aproximado pela loja; nulo quando ela não informa. */
+  size: number | null;
+  targets: SteamLibrary[];
+}
 
 export interface Emulator {
   id: string;
@@ -43,6 +89,12 @@ export interface VolumeState {
   /** De 0 a 100. */
   level: number;
   muted: boolean;
+}
+
+export interface Battery {
+  state: "battery" | "charging" | "full" | "wired" | "unknown";
+  /** De 0 a 100; nulo quando o controle não informa. */
+  percent: number | null;
 }
 
 export interface SessionInfo {
@@ -86,6 +138,8 @@ if (inTauri) {
 
 export function artUrl(path: string | null): string | null {
   if (!path) return null;
+  // Imagens das lojas, para jogos ainda não instalados.
+  if (/^(https?|data):/.test(path)) return path;
   return convert ? convert(path) : path;
 }
 

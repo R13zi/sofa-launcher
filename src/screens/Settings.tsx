@@ -5,11 +5,13 @@ import { openFileBrowser } from "../components/FileBrowser";
 import { Hints } from "../components/Hints";
 import { openKeyboard } from "../components/VirtualKeyboard";
 import { setAnimationsEnabled } from "../nav";
+import { steamKeyPrompt } from "./storeActions";
 
 export function Settings() {
   const [autostart, setAutostart] = useState(false);
   const [swap, setSwap] = useState(false);
   const [hasKey, setHasKey] = useState(false);
+  const [hasSteamKey, setHasSteamKey] = useState(false);
   const [libraryDir, setLibraryDir] = useState("");
   const [reduceAnimations, setReduceAnimations] = useState(false);
   const [progress, setProgress] = useState<ArtProgress | null>(null);
@@ -18,6 +20,7 @@ export function Settings() {
     void call<boolean>("autostart_get").then(setAutostart);
     void call<boolean>("swap_confirm_get").then(setSwap);
     void call<boolean>("art_key_status").then(setHasKey);
+    void call<boolean>("steam_key_status").then(setHasSteamKey);
     void call<string>("library_dir_get").then(setLibraryDir);
     void call<boolean>("reduce_animations_get").then(setReduceAnimations);
     void on<ArtProgress>("art-progress", setProgress);
@@ -77,6 +80,13 @@ export function Settings() {
         )}
         <p class="muted">
           A chave é gratuita em steamgriddb.com, em Preferences → API, e fica guardada no Gerenciador de Credenciais do Windows.
+        </p>
+        <button onClick={() => steamKeyPrompt(() => setHasSteamKey(true))}>
+          <span>Chave da API Steam</span><span class="detail">{hasSteamKey ? "Configurada" : "Não configurada"}</span>
+        </button>
+        <p class="muted">
+          Usada na aba Instalar para listar os jogos da sua conta. É gratuita em steamcommunity.com/dev/apikey (qualquer nome de
+          domínio serve). Os detalhes de jogos do perfil precisam estar públicos nas configurações de privacidade da Steam.
         </p>
       </div>
       <Hints items={[["confirm", "Alterar"], ["back", "Voltar"]]} />

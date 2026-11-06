@@ -38,6 +38,8 @@ pub enum UpdateState {
     Pending,
     /// Steam: baixando ou instalando a atualização.
     Downloading { done: u64, total: u64 },
+    /// Steam: primeira instalação, ainda sem versão jogável.
+    Installing { done: u64, total: u64 },
     /// Epic: só a versão instalada é conhecida; quem verifica é o launcher dela.
     Version { version: String },
 }

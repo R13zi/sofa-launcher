@@ -1,4 +1,43 @@
-import { GameView, sourceLabel } from "../api";
+import { GameView, Installable, InstallList, sourceLabel } from "../api";
+
+export type InstallAction = "install" | "steam-key" | "steam-retry" | "epic-library";
+
+export interface InstallEntry {
+  id: string;
+  title: string;
+  source: "steam" | "epic";
+  art: string | null;
+  action: InstallAction;
+  /** Linha abaixo do título. */
+  note: string;
+  game?: Installable;
+}
+
+/** Cartões da aba Instalar: Steam, depois Epic, com os atalhos de configuração no lugar certo. */
+export function installEntries(list: InstallList): InstallEntry[] {
+  const entries: InstallEntry[] = [];
+  if (list.steam_needs_key) {
+    entries.push({
+      id: "action:steam-key", title: "Conectar a Steam", source: "steam", art: null, action: "steam-key",
+      note: "Digite uma vez a chave da API Steam para ver os jogos da sua conta.",
+    });
+  } else if (list.steam_error) {
+    entries.push({ id: "action:steam-retry", title: "Steam indisponível", source: "steam", art: null, action: "steam-retry", note: list.steam_error });
+  }
+  const toEntry = (g: Installable): InstallEntry => ({
+    id: g.id, title: g.title, source: g.source, art: g.art, action: "install", game: g,
+    note: `${sourceLabel(g.source)} · Não instalado`,
+  });
+  entries.push(...list.steam.map(toEntry), ...list.epic.map(toEntry));
+  entries.push({
+    id: "action:epic-library", title: "Biblioteca da Epic", source: "epic", art: null, action: "epic-library",
+    note: "Abre a Epic para instalar jogos que não aparecem aqui.",
+  });
+  return entries;
+}
+
+/** Aba com os jogos da conta que ainda não estão instalados. */
+export const INSTALL_TAB = "install";
 
 export interface Tab {
   id: string;
@@ -14,6 +53,7 @@ export function buildTabs(games: GameView[]): Tab[] {
   const tabs: Tab[] = [{ id: "home", label: "Início" }, { id: "all", label: "Todos" }];
   tabs.push(...sources.map((s) => ({ id: s, label: sourceLabel(s) })));
   if (games.some((g) => g.hidden)) tabs.push({ id: "hidden", label: "Ocultos" });
+  tabs.push({ id: INSTALL_TAB, label: "Instalar" });
   return tabs;
 }
 
@@ -28,6 +68,7 @@ export function filterGames(games: GameView[], tab: string, query: string): Game
   return games.filter((g) => {
     if (query.trim()) return !g.hidden && matchesSearch(g.title, query);
     if (tab === "hidden") return g.hidden;
+    if (tab === INSTALL_TAB) return false;
     if (g.hidden) return false;
     return tab === "all" || tab === "home" || g.source === tab;
   });

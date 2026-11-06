@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GameView } from "../api";
-import { buildTabs, cycleTab, favoriteGames, filterGames, matchesSearch, recentGames } from "./library";
+import { buildTabs, cycleTab, favoriteGames, filterGames, installEntries, matchesSearch, recentGames } from "./library";
 
 const game = (id: string, source: string, extra: Partial<GameView> = {}): GameView => ({
   id, title: id, source, art: null, hero: null, custom_hero: null, favorite: false, hidden: false, last_played: 0, playtime_secs: 0, launch_file: null, update: null, ...extra,
@@ -16,8 +16,13 @@ describe("biblioteca", () => {
 
   it("só cria abas de origens com jogos visíveis, em ordem fixa", () => {
     const ids = buildTabs(games).map((t) => t.id);
-    expect(ids).toEqual(["home", "all", "steam", "dolphin", "manual", "hidden"]);
-    expect(buildTabs([game("a", "epic", { hidden: true })]).map((t) => t.id)).toEqual(["home", "all", "hidden"]);
+    expect(ids).toEqual(["home", "all", "steam", "dolphin", "manual", "hidden", "install"]);
+    expect(buildTabs([game("a", "epic", { hidden: true })]).map((t) => t.id)).toEqual(["home", "all", "hidden", "install"]);
+  });
+
+  it("a aba Instalar existe mesmo sem jogos e não mostra os instalados", () => {
+    expect(buildTabs([]).map((t) => t.id)).toEqual(["home", "all", "install"]);
+    expect(filterGames(games, "install", "")).toEqual([]);
   });
 
   it("busca ignora acentos e maiúsculas", () => {
@@ -41,9 +46,20 @@ describe("biblioteca", () => {
     expect(favoriteGames(games).map((g) => g.id)).toEqual(["Half-Life"]);
   });
 
+  it("monta os cartões da aba Instalar", () => {
+    const steam = { id: "steam:620", title: "Portal 2", source: "steam" as const, art: null };
+    const epic = { id: "epic:Calluna", title: "Control", source: "epic" as const, art: null };
+    const ids = (list: Parameters<typeof installEntries>[0]) => installEntries(list).map((e) => e.id);
+    expect(ids({ steam: [steam], steam_error: null, steam_needs_key: false, epic: [epic] }))
+      .toEqual(["steam:620", "epic:Calluna", "action:epic-library"]);
+    expect(ids({ steam: [], steam_error: null, steam_needs_key: true, epic: [] })).toEqual(["action:steam-key", "action:epic-library"]);
+    const failed = installEntries({ steam: [], steam_error: "perfil privado", steam_needs_key: false, epic: [] });
+    expect(failed[0]).toMatchObject({ action: "steam-retry", note: "perfil privado" });
+  });
+
   it("abas dão a volta nas pontas", () => {
     const tabs = buildTabs(games);
-    expect(cycleTab(tabs, "home", -1)).toBe("hidden");
-    expect(cycleTab(tabs, "hidden", 1)).toBe("home");
+    expect(cycleTab(tabs, "home", -1)).toBe("install");
+    expect(cycleTab(tabs, "install", 1)).toBe("home");
   });
 });

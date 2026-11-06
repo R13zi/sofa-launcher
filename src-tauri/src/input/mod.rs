@@ -136,6 +136,25 @@ unsafe fn describe(gamepad: *mut SDL_Gamepad) -> ControllerInfo {
     ControllerInfo { family, name }
 }
 
+/// Bateria do controle em uso; `None` sem controle ou quando ele não informa.
+unsafe fn read_battery(pad: Option<*mut SDL_Gamepad>) -> Option<crate::battery::Battery> {
+    use crate::battery::{Battery, PowerState};
+    let pad = pad?;
+    let mut percent: std::ffi::c_int = -1;
+    let state = SDL_GetGamepadPowerInfo(pad, &mut percent);
+    if let Some(battery) = crate::battery::from_sdl(state.0, percent) {
+        return Some(battery);
+    }
+    // Controles do Xbox por Bluetooth não informam a bateria ao SDL; o Windows sabe.
+    let state = match crate::battery::bluetooth_gamepad_percent() {
+        Some(p) => Battery { state: PowerState::Battery, percent: Some(p) },
+        None => Battery { state: PowerState::Unknown, percent: None },
+    };
+    Some(state)
+}
+
+const BATTERY_EVERY: Duration = Duration::from_secs(30);
+
 fn dispatch(app: &AppHandle, outputs: Vec<Output>) {
     for output in outputs {
         match output {
@@ -187,6 +206,8 @@ unsafe fn run(app: AppHandle) {
     let mut event: SDL_Event = std::mem::zeroed();
     let mut ticks: u32 = 0;
     let mut last_pad: Option<SDL_JoystickID> = None;
+    let mut battery_at: Option<Instant> = None;
+    let mut battery_warned = crate::battery::NOT_WARNED;
 
     loop {
         let now = Instant::now();
@@ -200,6 +221,7 @@ unsafe fn run(app: AppHandle) {
                         pads.insert(which, pad);
                         last_pad = Some(which);
                         let _ = app.emit("controller", describe(pad));
+                        battery_at = None;
                     }
                 }
                 SDL_EVENT_GAMEPAD_REMOVED => {
@@ -209,6 +231,7 @@ unsafe fn run(app: AppHandle) {
                     }
                     if last_pad == Some(which) {
                         last_pad = pads.keys().next().copied();
+                        battery_at = None;
                     }
                     state.reset();
                     stick = Stick::default();
@@ -257,6 +280,18 @@ unsafe fn run(app: AppHandle) {
         }
         dispatch(&app, state.tick(now));
 
+        if battery_at.is_none_or(|at| now.duration_since(at) >= BATTERY_EVERY) {
+            battery_at = Some(now);
+            let mut battery = read_battery(last_pad.and_then(|id| pads.get(&id).copied()));
+            // Teste do aviso sem esperar a bateria acabar: um número no arquivo %APPDATA%\Sofa\fake-battery.txt,
+            // relido a cada leitura. Apagar o arquivo volta para a bateria real em até 30 s.
+            let fake = std::fs::read_to_string(crate::library::data_dir().join("fake-battery.txt")).ok();
+            if let Some(p) = fake.and_then(|v| v.trim().parse::<u8>().ok()) {
+                battery = Some(crate::battery::Battery { state: crate::battery::PowerState::Battery, percent: Some(p.min(100)) });
+            }
+            crate::battery::update(&app, battery, &mut battery_warned);
+        }
+
         ticks = ticks.wrapping_add(1);
         if cursor_mode() {
             if let Some(&pad) = last_pad.and_then(|id| pads.get(&id)) {
@@ -280,6 +315,43 @@ unsafe fn run(app: AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Diagnóstico com o controle real: `cargo test bateria_real -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn bateria_real() {
+        unsafe {
+            SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, c"1".as_ptr());
+            assert!(SDL_Init(SDL_INIT_GAMEPAD));
+            let mut event: SDL_Event = std::mem::zeroed();
+            let mut pads = vec![];
+            let start = Instant::now();
+            let mut last_print = Instant::now() - Duration::from_secs(5);
+            while start.elapsed() < Duration::from_secs(12) {
+                while SDL_PollEvent(&mut event) {
+                    let kind = SDL_EventType(event.r#type);
+                    if kind == SDL_EVENT_GAMEPAD_ADDED {
+                        let pad = SDL_OpenGamepad(event.gdevice.which);
+                        println!("ADICIONADO {}", describe(pad).name);
+                        pads.push(pad);
+                    } else if kind == SDL_EVENT_JOYSTICK_BATTERY_UPDATED {
+                        println!("EVENTO BATERIA estado={} pct={}", event.jbattery.state.0, event.jbattery.percent);
+                    }
+                }
+                if last_print.elapsed() >= Duration::from_secs(2) {
+                    last_print = Instant::now();
+                    for &pad in &pads {
+                        let mut pct = -1;
+                        let state = SDL_GetGamepadPowerInfo(pad, &mut pct);
+                        let joy = SDL_GetGamepadJoystick(pad);
+                        let conn = SDL_GetJoystickConnectionState(joy).0;
+                        println!("{} | estado={} pct={} conexao={}", describe(pad).name, state.0, pct, conn);
+                    }
+                }
+                std::thread::sleep(Duration::from_millis(20));
+            }
+        }
+    }
 
     #[test]
     fn cursor_para_na_zona_morta() {

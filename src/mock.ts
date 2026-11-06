@@ -52,6 +52,7 @@ const mockImportPlans = [{
   ],
 }];
 let importCancelled = false;
+let mockSteamKey = false;
 let mockClipboard = "";
 const mockVolume = { level: 62, muted: false };
 if (typeof window !== "undefined") (window as unknown as { sofaVolume: typeof mockVolume }).sofaVolume = mockVolume;
@@ -148,6 +149,53 @@ export function mockInvoke(command: string, args: Record<string, unknown>): unkn
       { name: "Dusklight", path: "C:\\Games\\Sofa\\iso\\Dusklight", size: 4 * GB, file_count: 2, main_files: ["C:\\Games\\Sofa\\iso\\Dusklight\\disco\\jogo.iso"] },
       { name: "Mario 64", path: "C:\\Games\\Sofa\\iso\\Mario 64", size: GB, file_count: 3200, main_files: [] },
     ];
+    case "controller_battery": return { state: "battery", percent: 64 };
+    case "storage_overview": return [
+      {
+        root: "C:\\", total: 476 * GB, free: 92 * GB,
+        games: games.filter((g) => g.source === "steam").map((g, i) => ({ id: g.id, title: g.title, source: g.source, art: null, size: (40 - i * 9) * GB, removable: true })),
+      },
+      { root: "D:\\", total: 931 * GB, free: 610 * GB, games: [{ id: "manual:dusklight", title: "Dusklight", source: "manual", art: null, size: 3 * GB, removable: true }] },
+    ];
+    case "game_size": {
+      const game = games.find((g) => g.id === args.id);
+      return game ? { id: game.id, title: game.title, source: game.source, art: null, size: 12.3 * GB, removable: game.source !== "cemu" } : null;
+    }
+    case "game_uninstall":
+      return new Promise((resolve) => setTimeout(() => {
+        const index = games.findIndex((g) => g.id === args.id);
+        if (index >= 0) games.splice(index, 1);
+        mockEmit("library-changed");
+        resolve(null);
+      }, 1500));
+    case "steam_key_status": return mockSteamKey;
+    case "steam_key_save": mockSteamKey = true; return null;
+    case "store_installable": return {
+      steam: mockSteamKey ? [
+        { id: "steam:620", title: "Portal 2", source: "steam", art: null },
+        { id: "steam:400", title: "Portal", source: "steam", art: null },
+      ] : [],
+      steam_error: null,
+      steam_needs_key: !mockSteamKey,
+      epic: [{ id: "epic:Calluna", title: "Control", source: "epic", art: null }],
+    };
+    case "steam_install_targets": return new Promise((resolve) => setTimeout(() => resolve({
+      // Portal pede mais do que cabe no C:, para testar o aviso de falta de espaço.
+      size: args.appid === "400" ? 120 * GB : args.appid === "620" ? 13 * GB : null,
+      targets: [
+        { path: "C:\\Program Files (x86)\\Steam", free: 92 * GB, total: 476 * GB, new: false },
+        { path: "D:\\SteamLibrary", free: 610 * GB, total: 931 * GB, new: true },
+      ],
+    }), 600));
+    case "steam_install":
+      return new Promise((resolve) => setTimeout(() => {
+        games.push({
+          id: `steam:${args.appid}`, title: args.name as string, source: "steam", art: null, hero: null, custom_hero: null, favorite: false,
+          hidden: false, last_played: 0, playtime_secs: 0, launch_file: null, update: { state: "installing", done: GB, total: 8 * GB },
+        });
+        mockEmit("library-changed");
+        resolve(null);
+      }, 2000));
     case "volume_get": return { ...mockVolume };
     case "volume_set": mockVolume.level = args.level as number; return null;
     case "volume_set_mute": mockVolume.muted = args.muted as boolean; return null;

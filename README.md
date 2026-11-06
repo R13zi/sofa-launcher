@@ -132,6 +132,18 @@ Nos detalhes de um jogo da Steam ou da Epic, uma linha mostra o estado dele: "At
 
 Jogos de emulador e `.exe` avulsos não têm atualização pelo Sofa.
 
+## Instalar e desinstalar jogos
+
+- **Aba Instalar** (última aba da tela inicial): jogos da sua conta que não estão instalados.
+  - **Steam:** a lista vem da API oficial e precisa da chave da API Steam, digitada uma vez em Configurações (gratuita em steamcommunity.com/dev/apikey). Os detalhes de jogos do perfil precisam estar públicos. Ao instalar, o Sofa mostra o tamanho aproximado do jogo (dos requisitos da página da loja) e pede o disco, entre todos os discos internos; num disco sem biblioteca da Steam, ela é criada em `<disco>\SteamLibrary`. Se o jogo não cabe, o Sofa avisa quanto falta e oferece abrir o Armazenamento. Depois fecha a Steam, prepara a instalação e a reabre em segundo plano; o download começa sozinho, e o jogo aparece na biblioteca com "Instalando X%".
+  - **Epic:** a lista vem do cache do launcher da Epic neste PC e pode estar incompleta. Instalar abre a janela da Epic no modo desktop, para confirmar com o cursor do controle. O cartão "Biblioteca da Epic" abre a biblioteca completa.
+- **Menu → Armazenamento:** espaço de cada disco e o tamanho de cada jogo, do maior para o menor. Selecionar um jogo oferece desinstalar.
+- **Desinstalar** (também nos detalhes do jogo): apaga a pasta do jogo e o registro na loja. A Steam ou a Epic fecham por alguns segundos e reabrem em segundo plano. Jogos importados só são apagados se estiverem na pasta da biblioteca do Sofa.
+
+## Bateria do controle
+
+O nível aparece no canto da tela inicial e no topo do menu (Start ou L3 + R3). Com 20% e com 10%, um aviso aparece no canto com um som curto, inclusive por cima do jogo. Quando o controle não informa a bateria ao SDL (caso dos controles do Xbox por Bluetooth), o Sofa lê a mesma porcentagem que o Windows mostra em Configurações → Bluetooth. Sem nenhuma leitura, o ícone aparece como "Sem leitura". Para testar o aviso, escreva um número em `%APPDATA%\Sofa\fake-battery.txt` (relido a cada 30 s, inclusive com um jogo aberto). Ao apagar o arquivo, a bateria real volta em até 30 s.
+
 ## Instalar e atualizar
 
 Baixe o `Sofa_x.y.z_x64-setup.exe` em [Releases](https://github.com/R13zi/sofa-launcher/releases/latest). Depois de instalado, as atualizações saem por Menu → Procurar atualizações do Sofa, só com o controle.
@@ -196,5 +208,7 @@ Os dados ficam em `%APPDATA%\Sofa`.
 - **Jogos em janela:** a barra de tarefas pode aparecer na base da tela.
 - **Launchers em outra pasta:** um jogo da Steam que abre um launcher instalado em outro lugar (como o da Rockstar ou da EA) não é detectado, e a sessão termina em 180 s mesmo com o jogo aberto.
 - **Janelas de administrador:** o modo desktop não consegue controlá-las.
+- **Instalação silenciosa da Steam:** não é um recurso oficial da Steam; se ela mudar, pode deixar de funcionar.
+- **Aviso de bateria em tela cheia exclusiva:** não aparece por cima do jogo, como o menu; o som toca mesmo assim.
 - **Atualizações na Epic:** o Sofa só sabe que há atualização depois que a Epic verifica; se a atualização automática estiver desligada nela, a janela da Epic pode aparecer.
 - **Steam Input:** a configuração de desktop da Steam pode interferir no controle.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeUpdate, formatSize, needsUpdate, updateProgress } from "./updateFormat";
+import { describeUpdate, formatSize, isInstalling, needsUpdate, updateProgress } from "./updateFormat";
 
 describe("atualizações de jogos", () => {
   it("descreve cada estado", () => {
@@ -27,5 +27,14 @@ describe("atualizações de jogos", () => {
     expect(needsUpdate({ state: "downloading", done: 0, total: 1 })).toBe(true);
     expect(needsUpdate({ state: "up_to_date" })).toBe(false);
     expect(needsUpdate({ state: "version", version: "1" })).toBe(false);
+  });
+
+  it("primeira instalação mostra o progresso como instalando", () => {
+    const installing = { state: "installing" as const, done: 512 * 1024 ** 2, total: 1024 ** 3 };
+    expect(describeUpdate(installing)).toBe("Instalando · 50% · 512 MB de 1 GB");
+    expect(describeUpdate({ state: "installing", done: 0, total: 0 })).toBe("Instalando…");
+    expect(isInstalling(installing)).toBe(true);
+    expect(isInstalling({ state: "downloading", done: 0, total: 1 })).toBe(false);
+    expect(needsUpdate(installing)).toBe(true);
   });
 });

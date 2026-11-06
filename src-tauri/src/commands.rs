@@ -4,8 +4,7 @@ use crate::library::{scan_all, GameView, Meta};
 use crate::providers::emulator::{preset, Emulator};
 use crate::providers::manual::ManualGame;
 use crate::session::{self, SessionInfo};
-use crate::{art, credentials, importer, input, overlay, AppState};
-use serde::Serialize;
+use crate::{art, credentials, importer, input, overlay, AppState};use serde::Serialize;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -230,8 +229,191 @@ pub fn game_update_check(state: St, id: String) -> Result<bool, String> {
     }
 }
 
+// ---- Armazenamento ----
+
+#[tauri::command(async)]
+pub fn storage_overview(state: St) -> Vec<crate::storage::DriveView> {
+    crate::storage::overview(&state)
+}
+
+#[tauri::command(async)]
+pub fn game_size(state: St, id: String) -> Option<crate::storage::GameSize> {
+    crate::storage::game_size(&state, &id)
+}
+
+/// Apaga o jogo e atualiza a biblioteca.
+#[tauri::command(async)]
+pub fn game_uninstall(app: AppHandle, state: St, id: String) -> Result<(), String> {
+    let result = crate::storage::uninstall(&state, &id);
+    rescan(&state);
+    let _ = app.emit("library-changed", ());
+    result
+}
+
+// ---- Instalar jogos ----
+
+#[derive(Serialize)]
+pub struct Installable {
+    id: String,
+    title: String,
+    source: String,
+    art: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct InstallList {
+    steam: Vec<Installable>,
+    /// Por que a lista da Steam não veio, quando não veio.
+    steam_error: Option<String>,
+    steam_needs_key: bool,
+    epic: Vec<Installable>,
+}
+
+/// Jogos da conta que não estão instalados.
+#[tauri::command(async)]
+pub fn store_installable(state: St) -> InstallList {
+    let installed: std::collections::HashSet<String> = state.games.lock().unwrap().iter().map(|g| g.id.clone()).collect();
+    let steam_key = credentials::load_from(credentials::STEAM);
+    let (mut steam, mut steam_error) = (vec![], None);
+    match (&steam_key, crate::providers::steam::steam_id()) {
+        (None, _) => {}
+        (Some(_), None) => steam_error = Some("Nenhuma conta da Steam encontrada neste PC. Entre na Steam uma vez.".into()),
+        (Some(key), Some(id)) => match crate::providers::steam::owned_games(key, &id) {
+            Ok(owned) => {
+                steam = owned
+                    .into_iter()
+                    .filter(|o| !installed.contains(&format!("steam:{}", o.appid)) && !crate::providers::steam::has_manifest(&o.appid))
+                    .map(|o| Installable {
+                        art: crate::providers::steam::cached_art(&o.appid).or_else(|| {
+                            Some(format!("https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{}/library_600x900.jpg", o.appid))
+                        }),
+                        id: format!("steam:{}", o.appid),
+                        title: o.name,
+                        source: "steam".into(),
+                    })
+                    .collect();
+                steam.sort_by_key(|g| g.title.to_lowercase());
+            }
+            Err(e) => steam_error = Some(e),
+        },
+    }
+    let epic = crate::providers::epic::owned_games()
+        .into_iter()
+        .filter(|o| !installed.contains(&format!("epic:{}", o.app_name)))
+        .map(|o| Installable { id: format!("epic:{}", o.app_name), title: o.title, source: "epic".into(), art: o.art })
+        .collect();
+    InstallList { steam, steam_error, steam_needs_key: steam_key.is_none(), epic }
+}
+
+#[derive(Serialize)]
+pub struct SteamLibrary {
+    path: String,
+    free: u64,
+    total: u64,
+    /// A biblioteca ainda não existe e será criada na instalação.
+    new: bool,
+}
+
+#[derive(Serialize)]
+pub struct InstallTargets {
+    /// Tamanho aproximado pela loja; nulo quando ela não informa.
+    size: Option<u64>,
+    /// Um destino por disco: a biblioteca que já existe nele, ou uma nova a criar.
+    targets: Vec<SteamLibrary>,
+}
+
+/// Bibliotecas da Steam de cada disco fixo. Num disco sem biblioteca, oferece `<disco>\SteamLibrary`.
+fn install_targets() -> Vec<SteamLibrary> {
+    use crate::providers::steam::{libraries, NEW_LIBRARY_DIR};
+    let existing = libraries();
+    let mut targets: Vec<SteamLibrary> = vec![];
+    for drive in crate::storage::fixed_drives() {
+        let Some((free, total)) = crate::storage::disk_space(Path::new(&drive)) else { continue };
+        let on_drive: Vec<&std::path::PathBuf> =
+            existing.iter().filter(|l| crate::storage::drive_of(&l.to_string_lossy()).as_deref() == Some(drive.as_str())).collect();
+        if on_drive.is_empty() {
+            let path = Path::new(&drive).join(NEW_LIBRARY_DIR).to_string_lossy().into_owned();
+            targets.push(SteamLibrary { path, free, total, new: true });
+        }
+        for l in on_drive {
+            targets.push(SteamLibrary { path: l.to_string_lossy().into_owned(), free, total, new: false });
+        }
+    }
+    targets
+}
+
+#[tauri::command(async)]
+pub fn steam_install_targets(appid: String) -> InstallTargets {
+    InstallTargets { size: crate::providers::steam::store_size(&appid), targets: install_targets() }
+}
+
+/// Tamanho legível nas mensagens de erro.
+fn gb(bytes: u64) -> String {
+    let gb = bytes as f64 / (1u64 << 30) as f64;
+    if gb >= 10.0 { format!("{gb:.0} GB") } else { format!("{gb:.1} GB").replace('.', ",") }
+}
+
+fn ensure_idle(state: &AppState) -> Result<(), String> {
+    if state.session.lock().unwrap().is_some() {
+        return Err("Feche o jogo antes de instalar.".into());
+    }
+    Ok(())
+}
+
+/// Instala sem janela da Steam: ela é fechada, recebe o pedido e reabre em segundo plano.
+#[tauri::command(async)]
+pub fn steam_install(app: AppHandle, state: St, appid: String, name: String, library: String, size: Option<u64>) -> Result<(), String> {
+    ensure_idle(&state)?;
+    // Sem espaço a Steam começa e trava no primeiro megabyte; melhor recusar antes.
+    if let (Some(size), Some(drive)) = (size, crate::storage::drive_of(&library)) {
+        if let Some((free, _)) = crate::storage::disk_space(Path::new(&drive)) {
+            if free < size {
+                return Err(format!("Falta espaço em {drive}: o jogo precisa de cerca de {} e há {} livres.", gb(size), gb(free)));
+            }
+        }
+    }
+    crate::providers::steam::install(&appid, &name, Path::new(&library))?;
+    rescan(&state);
+    let _ = app.emit("library-changed", ());
+    Ok(())
+}
+
+/// Abre a janela de instalação da Epic; quem confirma é o usuário, no modo desktop.
+#[tauri::command(async)]
+pub fn epic_install(app: AppHandle, state: St, app_name: String) -> Result<(), String> {
+    ensure_idle(&state)?;
+    let owned = crate::providers::epic::owned_games().into_iter().find(|o| o.app_name == app_name).ok_or("Jogo da Epic não encontrado.")?;
+    session::open_uri(&crate::providers::epic::install_uri(&owned))?;
+    overlay::enter(&app)
+}
+
+#[tauri::command(async)]
+pub fn epic_open_library(app: AppHandle) -> Result<(), String> {
+    session::open_uri(crate::providers::epic::LIBRARY_URI)?;
+    overlay::enter(&app)
+}
+
 #[tauri::command]
-pub fn volume_get() -> Result<crate::volume::VolumeState, String> {
+pub fn steam_key_status() -> bool {
+    credentials::load_from(credentials::STEAM).is_some()
+}
+
+#[tauri::command]
+pub fn steam_key_save(key: String) -> Result<(), String> {
+    let key = key.trim();
+    if key.len() != 32 || !key.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err("A chave da API Steam tem 32 letras e números (0-9 e A-F).".into());
+    }
+    credentials::save_to(credentials::STEAM, key)
+}
+
+#[tauri::command]
+pub fn controller_battery() -> Option<crate::battery::Battery> {
+    *crate::battery::CURRENT.lock().unwrap()
+}
+
+#[tauri::command]
+pub fn volume_get()-> Result<crate::volume::VolumeState, String> {
     crate::volume::get()
 }
 
