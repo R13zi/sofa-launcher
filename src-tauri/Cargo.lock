@@ -3186,7 +3186,7 @@ dependencies = [
 
 [[package]]
 name = "sofa"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "sdl3-sys",
  "serde",
