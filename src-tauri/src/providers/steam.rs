@@ -159,9 +159,103 @@ pub fn parse_manifest(text: &str) -> Option<Manifest> {
     })
 }
 
+/// Progresso de um download desde que o Sofa viu o valor atual do manifesto.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LiveProgress {
+    reported: u64,
+    seen_at: f64,
+    received_at: u64,
+}
+
+/// A Steam só regrava o progresso no manifesto de vez em quando (às vezes passam 10 minutos).
+/// Entre uma gravação e outra, soma o que a Steam recebeu da rede desde então. O trecho entre a
+/// gravação e a primeira leitura do Sofa é estimado pela velocidade medida.
+/// `written_at`, `now` em segundos; `received` é o contador de rede da Steam agora.
+pub fn estimate_progress(
+    prev: Option<LiveProgress>,
+    reported: u64,
+    total: u64,
+    written_at: f64,
+    now: f64,
+    received: u64,
+) -> (LiveProgress, u64) {
+    let live = match prev {
+        Some(p) if p.reported == reported && received >= p.received_at => p,
+        _ => LiveProgress { reported, seen_at: now, received_at: received },
+    };
+    let since = received - live.received_at;
+    let elapsed = now - live.seen_at;
+    let before = if elapsed >= 2.0 { (since as f64 / elapsed * (live.seen_at - written_at).max(0.0)) as u64 } else { 0 };
+    (live, (reported + since + before).min(total).max(reported.min(total)))
+}
+
+static LIVE: std::sync::Mutex<Option<(String, LiveProgress)>> = std::sync::Mutex::new(None);
+
+fn secs(t: std::time::SystemTime) -> f64 {
+    t.duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs_f64()).unwrap_or(0.0)
+}
+
+/// Troca o progresso do manifesto pelo estimado ao vivo, quando só um jogo está baixando.
+fn apply_live(list: &mut [(PathBuf, Manifest, f64)]) {
+    let running: Vec<usize> = (0..list.len())
+        .filter(|&i| matches!(list[i].1.update, UpdateState::Downloading { total, .. } | UpdateState::Installing { total, .. } if total > 0))
+        .collect();
+    let mut live = LIVE.lock().unwrap();
+    let [i] = running[..] else {
+        *live = None;
+        return;
+    };
+    let Some(received) = crate::session::process_network_bytes("steam.exe") else { return };
+    let (_, m, written_at) = &mut list[i];
+    let prev = live.as_ref().filter(|(id, _)| *id == m.appid).map(|(_, p)| *p);
+    let now = secs(std::time::SystemTime::now());
+    let estimate = |reported, total| estimate_progress(prev, reported, total, *written_at, now, received);
+    let (state, update) = match m.update {
+        UpdateState::Downloading { done, total } => {
+            let (s, d) = estimate(done, total);
+            (s, UpdateState::Downloading { done: d, total })
+        }
+        UpdateState::Installing { done, total } => {
+            let (s, d) = estimate(done, total);
+            (s, UpdateState::Installing { done: d, total })
+        }
+        _ => return,
+    };
+    m.update = update;
+    *live = Some((m.appid.clone(), state));
+}
+
+/// Jogos baixando, instalando ou com atualização na fila, em todas as bibliotecas.
+pub fn downloads() -> Vec<(PathBuf, Manifest)> {
+    let mut out = vec![];
+    for library in libraries() {
+        let Ok(entries) = std::fs::read_dir(library.join("steamapps")) else { continue };
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_lowercase();
+            if !name.starts_with("appmanifest_") || !name.ends_with(".acf") {
+                continue;
+            }
+            let Some(m) = std::fs::read_to_string(entry.path()).ok().and_then(|t| parse_manifest(&t)) else { continue };
+            let active = matches!(m.update, UpdateState::Downloading { .. } | UpdateState::Installing { .. } | UpdateState::Pending);
+            if active && is_game(&m) {
+                let written_at = entry.metadata().and_then(|d| d.modified()).map(secs).unwrap_or(0.0);
+                out.push((library.clone(), m, written_at));
+            }
+        }
+    }
+    apply_live(&mut out);
+    out.into_iter().map(|(library, m, _)| (library, m)).collect()
+}
+
 /// Relê o manifesto para acompanhar uma atualização.
 pub fn read_update(manifest: &str) -> Option<UpdateState> {
-    parse_manifest(&std::fs::read_to_string(manifest).ok()?).map(|m| m.update)
+    let m = parse_manifest(&std::fs::read_to_string(manifest).ok()?)?;
+    if matches!(m.update, UpdateState::Downloading { .. } | UpdateState::Installing { .. }) {
+        if let Some((_, live)) = downloads().into_iter().find(|(_, d)| d.appid == m.appid) {
+            return Some(live.update);
+        }
+    }
+    Some(m.update)
 }
 
 /// A Steam só descobre atualizações aberta. Se estiver fechada, abre sem mostrar janela.
@@ -732,5 +826,25 @@ mod tests {
         let doc = parse_vdf(&out);
         assert_eq!(doc.get("libraryfolders").and_then(|l| l.get("1")).and_then(|e| e.str("contentid")), Some("42"));
         assert!(add_library_entry("lixo", r"D:\x", 1).is_err());
+    }
+
+    #[test]
+    fn progresso_ao_vivo_entre_gravacoes_do_manifesto() {
+        const MB: u64 = 1024 * 1024;
+        // Manifesto gravado em t=100 com 300 MB; o Sofa olha pela primeira vez em t=400.
+        let (live, done) = estimate_progress(None, 300 * MB, 1000 * MB, 100.0, 400.0, 5000 * MB);
+        assert_eq!(done, 300 * MB);
+        // 30 s depois a Steam recebeu mais 30 MB (1 MB/s): soma isso e os 300 s antes da leitura.
+        let (live, done) = estimate_progress(Some(live), 300 * MB, 1000 * MB, 100.0, 430.0, 5030 * MB);
+        assert_eq!(done, 630 * MB);
+        // Nunca passa do total.
+        let (_, done) = estimate_progress(Some(live), 300 * MB, 1000 * MB, 100.0, 2000.0, 9000 * MB);
+        assert_eq!(done, 1000 * MB);
+        // Manifesto regravado: recomeça a partir do valor novo.
+        let (_, done) = estimate_progress(Some(live), 700 * MB, 1000 * MB, 440.0, 440.0, 5040 * MB);
+        assert_eq!(done, 700 * MB);
+        // Steam reaberta (contador zerou): volta ao valor do manifesto.
+        let (_, done) = estimate_progress(Some(live), 300 * MB, 1000 * MB, 100.0, 450.0, 10 * MB);
+        assert_eq!(done, 300 * MB);
     }
 }

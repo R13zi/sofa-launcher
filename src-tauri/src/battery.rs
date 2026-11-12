@@ -129,13 +129,13 @@ pub fn update(app: &AppHandle, battery: Option<Battery>, warned: &mut u8) {
 }
 
 fn warn_low(app: &AppHandle, percent: u8) {
-    play_chime();
+    play_chime(false);
     if crate::input::mode() == crate::input::Mode::Launcher {
         let _ = app.emit_to("main", "battery-low", percent);
     } else {
         // Com jogo aberto ou no modo desktop, o launcher não está à vista.
         let app = app.clone();
-        std::thread::spawn(move || show_toast(&app, percent));
+        std::thread::spawn(move || show_toast(&app, &format!("toast-{percent}")));
     }
 }
 
@@ -143,15 +143,16 @@ const TOAST: &str = "toast";
 const TOAST_SECS: u64 = 6;
 
 /// Janela pequena por cima do jogo, que não rouba o foco nem recebe cliques.
-fn show_toast(app: &AppHandle, percent: u8) {
+/// `hash` diz à página qual aviso mostrar (veja `main.tsx`).
+pub fn show_toast(app: &AppHandle, hash: &str) {
     use windows::Win32::Foundation::HWND;
     use windows::Win32::UI::WindowsAndMessaging::*;
 
     if let Some(old) = app.get_webview_window(TOAST) {
         let _ = old.destroy();
     }
-    let Ok(window) = WebviewWindowBuilder::new(app, TOAST, WebviewUrl::App(format!("index.html#toast-{percent}").into()))
-        .title("Sofa - bateria")
+    let Ok(window) = WebviewWindowBuilder::new(app, TOAST, WebviewUrl::App(format!("index.html#{hash}").into()))
+        .title("Sofa - aviso")
         .decorations(false)
         .always_on_top(true)
         .skip_taskbar(true)
@@ -182,8 +183,8 @@ fn show_toast(app: &AppHandle, percent: u8) {
     let _ = window.destroy();
 }
 
-/// Dois tons curtos e baixos, descendo, como um alerta discreto.
-fn chime_wav() -> Vec<u8> {
+/// Dois tons curtos e baixos: descendo para alerta, subindo para boa notícia.
+fn chime_wav(rising: bool) -> Vec<u8> {
     const RATE: u32 = 22050;
     let mut samples: Vec<i16> = Vec::new();
     let mut tone = |freq: f32, ms: u32| {
@@ -196,9 +197,10 @@ fn chime_wav() -> Vec<u8> {
             samples.push((v * i16::MAX as f32) as i16);
         }
     };
-    tone(880.0, 130);
+    let (first, second) = if rising { (660.0, 880.0) } else { (880.0, 660.0) };
+    tone(first, 130);
     tone(0.0, 50);
-    tone(660.0, 200);
+    tone(second, 200);
 
     let data_len = (samples.len() * 2) as u32;
     let mut wav = Vec::with_capacity(44 + data_len as usize);
@@ -220,11 +222,12 @@ fn chime_wav() -> Vec<u8> {
     wav
 }
 
-fn play_chime() {
+pub fn play_chime(rising: bool) {
     use windows::Win32::Media::Audio::{PlaySoundW, SND_ASYNC, SND_MEMORY, SND_NODEFAULT};
     // O som toca de forma assíncrona; os dados precisam viver até o fim.
-    static WAV: OnceLock<Vec<u8>> = OnceLock::new();
-    let wav = WAV.get_or_init(chime_wav);
+    static ALERT: OnceLock<Vec<u8>> = OnceLock::new();
+    static GOOD: OnceLock<Vec<u8>> = OnceLock::new();
+    let wav = if rising { GOOD.get_or_init(|| chime_wav(true)) } else { ALERT.get_or_init(|| chime_wav(false)) };
     unsafe {
         let _ = PlaySoundW(windows::core::PCWSTR(wav.as_ptr() as *const u16), None, SND_MEMORY | SND_ASYNC | SND_NODEFAULT);
     }
@@ -310,7 +313,7 @@ mod tests {
 
     #[test]
     fn som_e_um_wav_valido() {
-        let wav = chime_wav();
+        let wav = chime_wav(true);
         assert_eq!(&wav[0..4], b"RIFF");
         assert_eq!(&wav[8..12], b"WAVE");
         let data_len = u32::from_le_bytes(wav[40..44].try_into().unwrap()) as usize;

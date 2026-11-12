@@ -200,6 +200,34 @@ pub fn parse_item(text: &str) -> Option<Game> {
     })
 }
 
+/// Instalação da Epic ainda em andamento (o `.item` existe, marcado como incompleto).
+pub struct EpicDownload {
+    pub app_name: String,
+    pub title: String,
+    pub location: String,
+    pub total: u64,
+}
+
+pub fn parse_incomplete(text: &str) -> Option<EpicDownload> {
+    let item: Item = serde_json::from_str(text).ok()?;
+    item.incomplete.then(|| EpicDownload {
+        app_name: item.app_name,
+        title: item.display_name,
+        location: item.install_location,
+        total: item.install_size,
+    })
+}
+
+pub fn downloads() -> Vec<EpicDownload> {
+    let dir = program_data().join(r"Epic\EpicGamesLauncher\Data\Manifests");
+    let Ok(entries) = std::fs::read_dir(dir) else { return vec![] };
+    entries
+        .flatten()
+        .filter(|e| e.path().extension().is_some_and(|x| x.eq_ignore_ascii_case("item")))
+        .filter_map(|e| parse_incomplete(&std::fs::read_to_string(e.path()).ok()?))
+        .collect()
+}
+
 pub fn scan() -> Vec<Game> {
     let dir = program_data().join(r"Epic\EpicGamesLauncher\Data\Manifests");
     let Ok(entries) = std::fs::read_dir(dir) else { return vec![] };
@@ -307,5 +335,15 @@ mod tests {
         assert!(parse_item(&item(r#""games""#, true)).is_none());
         assert!(parse_item(&item(r#""software""#, false)).is_none());
         assert!(parse_item("nao e json").is_none());
+    }
+
+    #[test]
+    fn instalacao_em_andamento() {
+        let item = |incomplete: bool| format!(
+            r#"{{"DisplayName":"Control","InstallLocation":"D:\\Epic\\Control","CatalogNamespace":"ns","CatalogItemId":"it","AppName":"Calluna","bIsIncompleteInstall":{incomplete},"InstallSize":1000}}"#
+        );
+        let d = parse_incomplete(&item(true)).unwrap();
+        assert_eq!((d.app_name.as_str(), d.title.as_str(), d.location.as_str(), d.total), ("Calluna", "Control", r"D:\Epic\Control", 1000));
+        assert!(parse_incomplete(&item(false)).is_none());
     }
 }

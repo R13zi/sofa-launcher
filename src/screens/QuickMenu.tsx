@@ -1,4 +1,4 @@
-import { call, SessionInfo, VolumeState } from "../api";
+import { call, Download, SessionInfo, VolumeState } from "../api";
 import { BatteryIndicator } from "../components/Battery";
 import { VolumeBar } from "../components/VolumeBar";
 import { confirmAction, MenuItem, openMenu, showError } from "../components/Dialog";
@@ -9,6 +9,7 @@ import { Emulators } from "./Emulators";
 import { openGameFilesScreen } from "./GameFiles";
 import { openImport } from "./ImportScreen";
 import { Settings } from "./Settings";
+import { openDownloads } from "./Downloads";
 import { openStorage } from "./Storage";
 import { checkForUpdates } from "./Updates";
 
@@ -52,10 +53,12 @@ function powerMenu(): void {
 
 /** Menu aberto por Start ou pela combinação; com jogo aberto, mostra as opções da sessão primeiro. */
 export async function openQuickMenu(): Promise<void> {
-  const [session, volume] = await Promise.all([
+  const [session, volume, downloads] = await Promise.all([
     call<SessionInfo | null>("session_info"),
     call<VolumeState>("volume_get").catch(() => null),
+    call<Download[]>("downloads").catch(() => []),
   ]);
+  const downloading = downloads.filter((d) => d.status === "active").length;
   const items: MenuItem[] = [];
   const resume = () => call("session_resume").catch(showError);
 
@@ -78,6 +81,7 @@ export async function openQuickMenu(): Promise<void> {
       { label: "Importar jogos (SSD ou pendrive)", onClick: () => void openImport() },
       { label: "Adicionar jogo (.exe)", onClick: addGame },
       { label: "Emuladores", onClick: () => nav.push(<Emulators />) },
+      { label: downloading > 0 ? `Downloads · ${downloading} baixando` : "Downloads", onClick: openDownloads },
       { label: "Armazenamento", onClick: openStorage },
       { label: "Atualizar biblioteca", onClick: () => refreshLibrary().catch(showError) },
       { label: "Procurar atualizações do Sofa", onClick: () => void checkForUpdates() },

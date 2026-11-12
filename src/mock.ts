@@ -37,6 +37,7 @@ const importItem = (id: string, title: string, status: string, pending: number, 
 });
 
 const GB = 1024 ** 3;
+const mockStart = Date.now();
 const mockImportPlans = [{
   drive: "E:\\",
   free_bytes: 200 * GB,
@@ -179,6 +180,23 @@ export function mockInvoke(command: string, args: Record<string, unknown>): unkn
       steam_needs_key: !mockSteamKey,
       epic: [{ id: "epic:Calluna", title: "Control", source: "epic", art: null }],
     };
+    case "downloads": {
+      // Progresso que anda com o tempo; The Forest fica sem espaço para mostrar o aviso.
+      const s = (Date.now() - mockStart) / 1000;
+      const cs = Math.min(74 * GB, 35.5 * GB + s * 42 * 1024 ** 2);
+      const list = [
+        { id: "steam:730", title: "Counter-Strike 2", source: "steam", art: null, kind: "update", status: "active",
+          done: cs, total: 74 * GB, drive: "C:\\", free: 92 * GB, in_library: true },
+        { id: "epic:Calluna", title: "Control", source: "epic", art: null, kind: "install", status: "active",
+          done: 4.1 * GB + s * 18 * 1024 ** 2, total: 33 * GB, drive: "D:\\", free: 610 * GB, in_library: false },
+        { id: "steam:242760", title: "The Forest", source: "steam", art: null, kind: "install", status: "active",
+          done: 9.5 * GB, total: 16 * GB, drive: "C:\\", free: 0.8 * GB, in_library: true },
+        { id: "steam:209000", title: "Batman: Arkham Origins", source: "steam", art: null, kind: "update", status: "queued",
+          done: 0, total: 2.3 * GB, drive: "C:\\", free: 92 * GB, in_library: true },
+      ];
+      return s > 40 ? list.filter((d) => d.id !== "steam:730") : list;
+    }
+    case "store_open_downloads": return null;
     case "steam_install_targets": return new Promise((resolve) => setTimeout(() => resolve({
       // Portal pede mais do que cabe no C:, para testar o aviso de falta de espaço.
       size: args.appid === "400" ? 120 * GB : args.appid === "620" ? 13 * GB : null,

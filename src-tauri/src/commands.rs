@@ -387,6 +387,77 @@ pub fn epic_install(app: AppHandle, state: St, app_name: String) -> Result<(), S
     overlay::enter(&app)
 }
 
+// ---- Downloads ----
+
+#[derive(Serialize)]
+pub struct Download {
+    id: String,
+    title: String,
+    source: String,
+    art: Option<String>,
+    /// "install" (primeira instalação) ou "update".
+    kind: &'static str,
+    /// "active" (baixando) ou "queued" (na fila da loja).
+    status: &'static str,
+    done: u64,
+    /// Zero quando a loja ainda não informou.
+    total: u64,
+    /// Disco do jogo e espaço livre nele, para avisar quando falta espaço.
+    drive: Option<String>,
+    free: Option<u64>,
+    /// Já aparece na biblioteca (dá para abrir os detalhes e desinstalar).
+    in_library: bool,
+}
+
+fn drive_space(path: &str) -> (Option<String>, Option<u64>) {
+    let drive = crate::storage::drive_of(path);
+    let free = drive.as_deref().and_then(|d| crate::storage::disk_space(Path::new(d))).map(|(free, _)| free);
+    (drive, free)
+}
+
+/// O que a Steam e a Epic estão baixando agora, lido dos arquivos delas.
+#[tauri::command(async)]
+pub fn downloads(state: St) -> Vec<Download> {
+    use crate::providers::UpdateState;
+    let arts: HashMap<String, Option<String>> = state.games.lock().unwrap().iter().map(|g| (g.id.clone(), g.art.clone())).collect();
+    let mut out = vec![];
+    for (library, m) in crate::providers::steam::downloads() {
+        let id = format!("steam:{}", m.appid);
+        let (kind, status, done, total) = match m.update {
+            UpdateState::Installing { done, total } => ("install", "active", done, total),
+            UpdateState::Downloading { done, total } => ("update", "active", done, total),
+            _ => ("update", "queued", 0, 0),
+        };
+        let art = arts.get(&id).cloned().flatten().or_else(|| crate::providers::steam::cached_art(&m.appid)).or_else(|| {
+            Some(format!("https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{}/library_600x900.jpg", m.appid))
+        });
+        let (drive, free) = drive_space(&library.to_string_lossy());
+        let in_library = arts.contains_key(&id);
+        out.push(Download { id, title: m.name, source: "steam".into(), art, kind, status, done, total, drive, free, in_library });
+    }
+    for d in crate::providers::epic::downloads() {
+        let id = format!("epic:{}", d.app_name);
+        let done = if d.location.is_empty() { 0 } else { crate::storage::dir_size(Path::new(&d.location)) };
+        let (drive, free) = drive_space(&d.location);
+        let art = arts.get(&id).cloned().flatten();
+        let in_library = arts.contains_key(&id);
+        out.push(Download { id, title: d.title, source: "epic".into(), art, kind: "install", status: "active", done: done.min(d.total), total: d.total, drive, free, in_library });
+    }
+    out
+}
+
+/// Abre a tela de downloads da loja, no modo desktop.
+#[tauri::command(async)]
+pub fn store_open_downloads(app: AppHandle, source: String) -> Result<(), String> {
+    let uri = match source.as_str() {
+        "steam" => "steam://open/downloads",
+        "epic" => crate::providers::epic::LIBRARY_URI,
+        _ => return Err("Loja desconhecida.".into()),
+    };
+    session::open_uri(uri)?;
+    overlay::enter(&app)
+}
+
 #[tauri::command(async)]
 pub fn epic_open_library(app: AppHandle) -> Result<(), String> {
     session::open_uri(crate::providers::epic::LIBRARY_URI)?;

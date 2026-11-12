@@ -118,6 +118,43 @@ unsafe fn map_button(gamepad: *mut SDL_Gamepad, button: u8) -> Option<Action> {
     }
 }
 
+/// Layout dos controles genéricos (DirectInput) mais vendidos: 0 = A, 1 = B, 2 = X, 3 = Y.
+pub fn generic_button(button: u8) -> Option<Action> {
+    let swap = SWAP_CONFIRM.load(Ordering::Relaxed);
+    Some(match button {
+        0 => if swap { Action::Back } else { Action::Confirm },
+        1 => if swap { Action::Confirm } else { Action::Back },
+        2 => Action::X,
+        3 => Action::Y,
+        4 => Action::Lb,
+        5 => Action::Rb,
+        6 => Action::View,
+        7 => Action::Menu,
+        8 => Action::L3,
+        9 => Action::R3,
+        _ => return None,
+    })
+}
+
+/// Direcional digital (hat): 1 = cima, 2 = direita, 4 = baixo, 8 = esquerda, combináveis.
+pub fn hat_actions(value: u8) -> Vec<Action> {
+    [(1, Action::Up), (2, Action::Right), (4, Action::Down), (8, Action::Left)]
+        .into_iter()
+        .filter(|(bit, _)| value & bit != 0)
+        .map(|(_, a)| a)
+        .collect()
+}
+
+unsafe fn device_name(id: SDL_JoystickID) -> String {
+    let raw = SDL_GetJoystickNameForID(id);
+    if raw.is_null() { "Controle".into() } else { std::ffi::CStr::from_ptr(raw).to_string_lossy().into_owned() }
+}
+
+/// Nome e identificação USB, para o registro de diagnóstico.
+unsafe fn device_label(id: SDL_JoystickID) -> String {
+    format!("{} [{:04x}:{:04x}]", device_name(id), SDL_GetJoystickVendorForID(id), SDL_GetJoystickProductForID(id))
+}
+
 unsafe fn describe(gamepad: *mut SDL_Gamepad) -> ControllerInfo {
     let family = match SDL_GetGamepadType(gamepad) {
         SDL_GAMEPAD_TYPE_XBOX360 | SDL_GAMEPAD_TYPE_XBOXONE => "xbox",
@@ -202,6 +239,8 @@ unsafe fn run(app: AppHandle) {
 
     let mut state = InputState::default();
     let mut pads: HashMap<SDL_JoystickID, *mut SDL_Gamepad> = HashMap::new();
+    // Controles que o SDL não conhece como gamepad, lidos pelo layout mais comum.
+    let mut joys: HashMap<SDL_JoystickID, (*mut SDL_Joystick, Vec<Action>)> = HashMap::new();
     let mut stick = Stick::default();
     let mut event: SDL_Event = std::mem::zeroed();
     let mut ticks: u32 = 0;
@@ -217,15 +256,82 @@ unsafe fn run(app: AppHandle) {
                 SDL_EVENT_GAMEPAD_ADDED => {
                     let which = event.gdevice.which;
                     let pad = SDL_OpenGamepad(which);
-                    if !pad.is_null() {
+                    if pad.is_null() {
+                        let err = std::ffi::CStr::from_ptr(SDL_GetError()).to_string_lossy();
+                        crate::library::debug_log(&format!("controle {} não abriu: {err}", device_label(which)));
+                    } else {
+                        crate::library::debug_log(&format!("controle conectado: {}", device_label(which)));
                         pads.insert(which, pad);
                         last_pad = Some(which);
                         let _ = app.emit("controller", describe(pad));
                         battery_at = None;
                     }
                 }
+                SDL_EVENT_JOYSTICK_ADDED => {
+                    let which = event.jdevice.which;
+                    if SDL_IsGamepad(which) {
+                        continue;
+                    }
+                    let joy = SDL_OpenJoystick(which);
+                    crate::library::debug_log(&format!("controle genérico: {} (aberto: {})", device_label(which), !joy.is_null()));
+                    if !joy.is_null() {
+                        joys.insert(which, (joy, vec![]));
+                        let _ = app.emit("controller", ControllerInfo { family: "generic", name: device_name(which) });
+                    }
+                }
+                SDL_EVENT_JOYSTICK_REMOVED => {
+                    if let Some((joy, _)) = joys.remove(&event.jdevice.which) {
+                        SDL_CloseJoystick(joy);
+                        state.reset();
+                        stick = Stick::default();
+                    }
+                }
+                SDL_EVENT_JOYSTICK_BUTTON_DOWN | SDL_EVENT_JOYSTICK_BUTTON_UP => {
+                    let b = event.jbutton;
+                    if !joys.contains_key(&b.which) {
+                        continue;
+                    }
+                    if let Some(action) = generic_button(b.button) {
+                        let out = if kind == SDL_EVENT_JOYSTICK_BUTTON_DOWN { state.press(action, now) } else { state.release(action) };
+                        dispatch(&app, out);
+                    }
+                }
+                SDL_EVENT_JOYSTICK_HAT_MOTION => {
+                    let h = event.jhat;
+                    let Some((_, held)) = joys.get_mut(&h.which) else { continue };
+                    let next = hat_actions(h.value);
+                    for old in held.iter().filter(|a| !next.contains(a)) {
+                        dispatch(&app, state.release(*old));
+                    }
+                    for new in next.iter().filter(|a| !held.contains(a)) {
+                        dispatch(&app, state.press(*new, now));
+                    }
+                    *held = next;
+                }
+                SDL_EVENT_JOYSTICK_AXIS_MOTION => {
+                    let a = event.jaxis;
+                    if !joys.contains_key(&a.which) {
+                        continue;
+                    }
+                    let (slot, neg, pos) = match a.axis {
+                        0 => (&mut stick.x, Action::Left, Action::Right),
+                        1 => (&mut stick.y, Action::Up, Action::Down),
+                        _ => continue,
+                    };
+                    let next = stick_direction(a.value, *slot, neg, pos);
+                    if next != *slot {
+                        if let Some(old) = *slot {
+                            dispatch(&app, state.release(old));
+                        }
+                        if let Some(new) = next {
+                            dispatch(&app, state.press(new, now));
+                        }
+                        *slot = next;
+                    }
+                }
                 SDL_EVENT_GAMEPAD_REMOVED => {
                     let which = event.gdevice.which;
+                    crate::library::debug_log(&format!("controle desconectado: {}", which.0));
                     if let Some(pad) = pads.remove(&which) {
                         SDL_CloseGamepad(pad);
                     }
@@ -315,6 +421,52 @@ unsafe fn run(app: AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn controle_generico() {
+        assert_eq!(generic_button(0), Some(Action::Confirm));
+        assert_eq!(generic_button(1), Some(Action::Back));
+        assert_eq!(generic_button(7), Some(Action::Menu));
+        assert_eq!(generic_button(12), None);
+        assert_eq!(hat_actions(0), vec![]);
+        assert_eq!(hat_actions(1 | 2), vec![Action::Up, Action::Right]);
+        assert_eq!(hat_actions(4), vec![Action::Down]);
+    }
+
+    /// Diagnóstico: lista o que o SDL enxerga. `cargo test controles_reais -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn controles_reais() {
+        unsafe {
+            SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, c"1".as_ptr());
+            assert!(SDL_Init(SDL_INIT_GAMEPAD));
+            let start = Instant::now();
+            let mut event: SDL_Event = std::mem::zeroed();
+            while start.elapsed() < Duration::from_secs(4) {
+                while SDL_PollEvent(&mut event) {
+                    let kind = SDL_EventType(event.r#type);
+                    if kind == SDL_EVENT_JOYSTICK_ADDED || kind == SDL_EVENT_GAMEPAD_ADDED {
+                        println!("EVENTO {:?} id={:?}", event.r#type, event.jdevice.which.0);
+                    }
+                }
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            let mut count = 0;
+            let ids = SDL_GetJoysticks(&mut count);
+            for i in 0..count as usize {
+                let id = *ids.add(i);
+                let name = SDL_GetJoystickNameForID(id);
+                let name = if name.is_null() { "?".into() } else { std::ffi::CStr::from_ptr(name).to_string_lossy().into_owned() };
+                println!(
+                    "JOYSTICK id={} nome={name} gamepad={} vid={:04x} pid={:04x}", id.0,
+                    SDL_IsGamepad(id),
+                    SDL_GetJoystickVendorForID(id),
+                    SDL_GetJoystickProductForID(id)
+                );
+            }
+            println!("TOTAL {count}");
+        }
+    }
 
     /// Diagnóstico com o controle real: `cargo test bateria_real -- --ignored --nocapture`.
     #[test]

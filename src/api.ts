@@ -69,6 +69,21 @@ export interface InstallTargets {
   targets: SteamLibrary[];
 }
 
+export interface Download {
+  id: string;
+  title: string;
+  source: "steam" | "epic";
+  art: string | null;
+  kind: "install" | "update";
+  status: "active" | "queued";
+  done: number;
+  /** Zero quando a loja ainda não informou. */
+  total: number;
+  drive: string | null;
+  free: number | null;
+  in_library: boolean;
+}
+
 export interface Emulator {
   id: string;
   name: string;

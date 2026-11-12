@@ -230,6 +230,8 @@ button.danger:focus { background: var(--danger); border-color: var(--danger); }
 .toast-host { position: fixed; top: calc(var(--safe) + 3.2rem); right: var(--gutter); z-index: 50; animation: toast-in 0.25s ease-out; }
 .toast { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.3rem; border-radius: 0.8rem; background: var(--panel-2); border-left: 0.3rem solid var(--danger); box-shadow: 0 0.6rem 2rem rgb(0 0 0 / 0.5); max-width: 28rem; }
 .toast .icon { width: 2.4rem; height: 2.4rem; color: var(--danger); flex: none; }
+.toast.ok { border-left-color: var(--accent); }
+.toast.ok .icon { color: var(--accent); }
 .toast strong { display: block; font-size: 1.05rem; }
 .toast span { color: var(--muted); font-size: 0.92rem; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(-0.6rem); } }
@@ -245,7 +247,32 @@ button.danger:focus { background: var(--danger); border-color: var(--danger); }
 .storage-games { background: var(--accent); }
 .storage-other { background: var(--muted); opacity: 0.45; }
 .storage-legend { display: flex; gap: 1.6rem; font-size: 0.9rem; margin-bottom: 0.3rem; }
-.dot { display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 50%; margin-right: 0.3rem; }
+
+/* Downloads */
+.downloads-top h1 { margin: 0 0 0.3rem; }
+.downloads { gap: 0; }
+.downloads-group { display: flex; flex-direction: column; gap: 0.45rem; margin-bottom: 1.3rem; }
+.downloads-group h2 { margin: 0 0 0.15rem; font-size: 0.95rem; font-family: inherit; color: var(--muted); }
+.list button.download { justify-content: flex-start; gap: 1.2rem; padding-block: 0.7rem; }
+.list button.download.attention { box-shadow: inset 0 0 0 2px var(--danger); }
+.download-cover { position: relative; flex: none; width: 2.9rem; aspect-ratio: 2 / 3; border-radius: 0.35rem; overflow: hidden; background: var(--panel-2); }
+.download-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.download-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.45rem; }
+.download-head { display: flex; justify-content: space-between; gap: 1rem; }
+.download-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.download-state { flex: none; color: var(--muted); font-size: 0.93rem; }
+.download.attention .download-state { color: var(--danger); }
+.download-bar { display: block; height: 0.45rem; border-radius: 0.25rem; background: var(--panel-2); overflow: hidden; }
+.download-bar span { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+.download.attention .download-bar span { background: var(--danger); }
+.download-bar.indeterminate span { animation: download-slide 1.6s ease-in-out infinite; }
+@keyframes download-slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+:root.no-anim .download-bar.indeterminate span { animation: none; }
+button.download:focus .download-state, button.download:focus .detail { color: inherit; }
+button.download:focus .download-bar { background: rgba(26, 18, 5, 0.22); }
+button.download:focus .download-bar span { background: var(--on-accent); }
+.list .detail.done { color: var(--safe-ok, #8fc7b0); }
+button:focus .detail.done { color: inherit; }.dot { display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 50%; margin-right: 0.3rem; }
 .dot.games { background: var(--accent); }
 .dot.other { background: var(--muted); opacity: 0.6; }
 

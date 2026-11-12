@@ -442,6 +442,23 @@ pub fn process_ids(exe: &str) -> Vec<u32> {
     pids
 }
 
+/// Bytes de E/S que não são de arquivo (na prática, a rede) somados entre os processos com este nome.
+pub fn process_network_bytes(exe: &str) -> Option<u64> {
+    use windows::Win32::System::Threading::{GetProcessIoCounters, IO_COUNTERS};
+    let mut total = None;
+    for pid in process_ids(exe) {
+        unsafe {
+            let Ok(process) = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) else { continue };
+            let mut counters = IO_COUNTERS::default();
+            if GetProcessIoCounters(process, &mut counters).is_ok() {
+                *total.get_or_insert(0) += counters.OtherTransferCount;
+            }
+            let _ = CloseHandle(process);
+        }
+    }
+    total
+}
+
 /// Caminho completo do executável de um processo aberto com este nome.
 pub fn process_path(exe: &str) -> Option<String> {
     process_ids(exe).into_iter().find_map(|pid| unsafe {

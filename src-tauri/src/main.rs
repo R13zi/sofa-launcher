@@ -4,6 +4,7 @@ mod art;
 mod battery;
 mod commands;
 mod credentials;
+mod download_watch;
 mod importer;
 mod input;
 mod library;
@@ -76,6 +77,7 @@ fn main() {
             input::spawn(app.handle().clone());
             session::spawn_monitor(app.handle().clone(), state.clone());
             importer::spawn_detector(app.handle().clone(), state.clone());
+            download_watch::spawn(app.handle().clone(), state.clone());
             if from_autostart {
                 session::spawn_autostart_guard(app.handle().clone(), state.clone());
             }
@@ -117,6 +119,8 @@ fn main() {
             commands::game_uninstall,
             commands::store_installable,
             commands::steam_install_targets,
+            commands::downloads,
+            commands::store_open_downloads,
             commands::steam_install,
             commands::epic_install,
             commands::epic_open_library,
