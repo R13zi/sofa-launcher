@@ -124,6 +124,8 @@ pub struct Session {
     pub hero: Option<String>,
     target: Target,
     tracker: Tracker,
+    /// Tela cheia sem borda, escolhida nos detalhes do jogo.
+    borderless: bool,
 }
 
 #[derive(Serialize, Clone)]
@@ -278,6 +280,7 @@ fn set_topmost(app: &AppHandle, on_top: bool) {
 }
 
 pub fn show_launcher(app: &AppHandle, on_top: bool) {
+    crate::borderless::set_taskbar_hidden(false);
     set_low_memory(app, false);
     input::set_mode(Mode::Launcher);
     set_topmost(app, on_top);
@@ -366,6 +369,7 @@ pub fn start(app: &AppHandle, state: &Arc<AppState>, game_id: &str) -> Result<()
         hero: view.hero,
         target,
         tracker: Tracker::new(Instant::now()),
+        borderless: view.borderless,
     };
     let info = new_session.info();
     *session = Some(new_session);
@@ -598,6 +602,7 @@ pub fn spawn_monitor(app: AppHandle, state: Arc<AppState>) {
             let windows = windows_of(&pids);
             let steps = session.tracker.observe(Instant::now(), !pids.is_empty(), !windows.is_empty());
             delay = if session.tracker.phase == Phase::Launching { POLL_LAUNCHING } else { POLL_PLAYING };
+            let borderless = session.borderless && session.tracker.phase == Phase::Playing;
 
             for step in steps {
                 match step {
@@ -624,6 +629,14 @@ pub fn spawn_monitor(app: AppHandle, state: Arc<AppState>) {
             }
             // Se o jogo trocar de janela (de uma tela de abertura para a principal, por exemplo),
             // o foco pode cair no launcher e deixar o jogo escondido atrás dele.
+            if borderless {
+                // No modo desktop a barra de tarefas precisa aparecer.
+                let in_game = input::mode() == Mode::InGame;
+                crate::borderless::set_taskbar_hidden(in_game);
+                if let (true, Some(monitor)) = (in_game, crate::display::chosen_rect(&app)) {
+                    crate::borderless::apply(&windows_of(&pids), monitor);
+                }
+            }
             let game_window = windows_of(&pids).first().copied();
             if input::mode() == Mode::InGame {
                 match game_window {

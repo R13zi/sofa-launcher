@@ -2,8 +2,10 @@
 
 mod art;
 mod battery;
+mod borderless;
 mod commands;
 mod credentials;
+mod display;
 mod download_watch;
 mod importer;
 mod input;
@@ -12,13 +14,42 @@ mod overlay;
 mod providers;
 mod session;
 mod storage;
+mod sunshine;
 mod volume;
 
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use windows::core::w;
 use windows::Win32::Foundation::{GetLastError, ERROR_ALREADY_EXISTS};
-use windows::Win32::System::Threading::CreateMutexW;
+use windows::Win32::System::Threading::{CreateEventW, CreateMutexW, SetEvent, WaitForSingleObject, INFINITE};
+
+/// Só uma cópia do Sofa roda por vez; a vigia do Moonlight também olha este mutex.
+pub const INSTANCE_MUTEX: windows::core::PCWSTR = w!("Local\\SofaLauncher");
+
+/// A segunda cópia do Sofa avisa a primeira por este evento, para ela vir para a frente.
+const SHOW_EVENT: windows::core::PCWSTR = w!("Local\\SofaShow");
+
+/// Pede à cópia aberta do Sofa que venha para a frente.
+fn signal_show() {
+    if let Ok(event) = unsafe { CreateEventW(None, false, false, SHOW_EVENT) } {
+        let _ = unsafe { SetEvent(event) };
+    }
+}
+
+/// Abrir o Sofa de novo (pelo Moonlight, por exemplo) traz o launcher para a frente,
+/// a não ser que um jogo ou o modo desktop esteja na tela.
+fn spawn_show_listener(app: tauri::AppHandle) {
+    let Ok(event) = (unsafe { CreateEventW(None, false, false, SHOW_EVENT) }) else { return };
+    let event = event.0 as isize;
+    std::thread::spawn(move || loop {
+        let handle = windows::Win32::Foundation::HANDLE(event as _);
+        unsafe { WaitForSingleObject(handle, INFINITE) };
+        library::debug_log("Sofa aberto de novo: trazendo para a frente");
+        if input::mode() == input::Mode::Launcher {
+            session::show_launcher(&app, false);
+        }
+    });
+}
 
 pub struct AppState {
     pub store: Mutex<library::Store>,
@@ -50,9 +81,20 @@ fn register_menu_shortcut(app: &tauri::AppHandle) {
 }
 
 fn main() {
+    // Cadastro no Sunshine, feito por uma cópia aberta como administrador, sem janela.
+    if let Some(code) = sunshine::run_admin_task(std::env::args()) {
+        std::process::exit(code);
+    }
+
+    // Aberto pelo Moonlight: acompanha o Sofa e termina junto, para o Sunshine encerrar a transmissão.
+    if let Some(code) = sunshine::run_moonlight_watch(std::env::args(), signal_show) {
+        std::process::exit(code);
+    }
+
     // Duas instâncias reagiriam ao mesmo controle ao mesmo tempo. O mutex vive até o fim do processo.
-    let _guard = unsafe { CreateMutexW(None, false, w!("Local\\SofaLauncher")) };
+    let _guard = unsafe { CreateMutexW(None, false, INSTANCE_MUTEX) };
     if unsafe { GetLastError() } == ERROR_ALREADY_EXISTS {
+        signal_show();
         return;
     }
 
@@ -65,6 +107,7 @@ fn main() {
         importing: AtomicBool::new(false),
         import_cancel: AtomicBool::new(false),
     });
+    borderless::restore_taskbar_at_start();
     commands::apply_autostart_default(&state);
     commands::rescan(&state);
     let from_autostart = std::env::args().any(|a| a == commands::AUTOSTART_ARG);
@@ -74,7 +117,9 @@ fn main() {
         .manage(state.clone())
         .setup(move |app| {
             register_menu_shortcut(app.handle());
+            display::place_main(app.handle());
             input::spawn(app.handle().clone());
+            spawn_show_listener(app.handle().clone());
             session::spawn_monitor(app.handle().clone(), state.clone());
             importer::spawn_detector(app.handle().clone(), state.clone());
             download_watch::spawn(app.handle().clone(), state.clone());
@@ -88,6 +133,7 @@ fn main() {
             commands::library_refresh,
             commands::set_favorite,
             commands::set_hidden,
+            commands::set_borderless,
             commands::set_art,
             commands::set_hero,
             commands::reduce_animations_get,
@@ -114,6 +160,11 @@ fn main() {
             commands::game_update_status,
             commands::game_update_check,
             commands::controller_battery,
+            commands::sunshine_status,
+            commands::monitors_list,
+            commands::monitor_get,
+            commands::monitor_set,
+            commands::sunshine_register,
             commands::storage_overview,
             commands::game_size,
             commands::game_uninstall,

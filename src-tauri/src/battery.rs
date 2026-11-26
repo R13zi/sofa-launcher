@@ -165,7 +165,7 @@ pub fn show_toast(app: &AppHandle, hash: &str) {
         return;
     };
     let _ = window.set_ignore_cursor_events(true);
-    let Ok(Some(monitor)) = window.primary_monitor() else { return };
+    let Some(monitor) = crate::display::chosen(app) else { return };
     let scale = monitor.scale_factor();
     let (mw, mx, my) = (monitor.size().width as i32, monitor.position().x, monitor.position().y);
     let (w, h, margin) = ((420.0 * scale) as i32, (96.0 * scale) as i32, (32.0 * scale) as i32);

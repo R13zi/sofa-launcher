@@ -175,6 +175,18 @@ export function GameDetail({ gameId }: { gameId: string }) {
           >
             Banner: {game.custom_hero ? fileName(game.custom_hero) : "automático"}
           </button>
+          <button
+            onClick={() => openMenu(
+              "Tela cheia sem borda",
+              [
+                { label: game.borderless ? "Desligar" : "Ligar", onClick: () => change("set_borderless", { value: !game.borderless }) },
+                { label: "Cancelar", onClick: () => {} },
+              ],
+              "Para jogos que ficam com a tela preta no Moonlight em tela cheia. Deixe o jogo em modo janela nas opções dele: durante o jogo, o Sofa tira a borda da janela e estica até a tela.",
+            )}
+          >
+            Tela cheia sem borda: {game.borderless ? "ligada" : "desligada"}
+          </button>
           <button onClick={() => change("set_hidden", { value: !game.hidden })}>
             {game.hidden ? "Mostrar na biblioteca" : "Ocultar da biblioteca"}
           </button>

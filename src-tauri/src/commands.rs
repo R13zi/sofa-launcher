@@ -51,6 +51,11 @@ pub fn set_favorite(state: St, id: String, value: bool) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn set_borderless(state: St, id: String, value: bool) -> Result<(), String> {
+    with_meta(&state, &id, |m| m.borderless = value)
+}
+
+#[tauri::command]
 pub fn set_hidden(state: St, id: String, value: bool) -> Result<(), String> {
     with_meta(&state, &id, |m| m.hidden = value)
 }
@@ -479,6 +484,40 @@ pub fn steam_key_save(key: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn monitors_list(app: AppHandle) -> Vec<crate::display::MonitorInfo> {
+    crate::display::list(&app)
+}
+
+/// Monitor escolhido; nulo quando é o principal do Windows (automático).
+#[tauri::command]
+pub fn monitor_get(state: St) -> Option<String> {
+    state.store.lock().unwrap().monitor.clone()
+}
+
+#[tauri::command]
+pub fn monitor_set(app: AppHandle, state: St, name: Option<String>) -> Result<(), String> {
+    {
+        let mut store = state.store.lock().unwrap();
+        store.monitor = name;
+        store.save().map_err(|e| e.to_string())?;
+    }
+    crate::display::place_main(&app);
+    Ok(())
+}
+
+#[tauri::command(async)]
+pub fn sunshine_status() -> crate::sunshine::Status {
+    crate::sunshine::status()
+}
+
+/// Cadastra (ou tira) o Sofa na lista do Moonlight. O Windows pede permissão de administrador.
+#[tauri::command(async)]
+pub fn sunshine_register(register: bool) -> Result<crate::sunshine::Status, String> {
+    crate::sunshine::request(register)?;
+    Ok(crate::sunshine::status())
+}
+
+#[tauri::command]
 pub fn controller_battery() -> Option<crate::battery::Battery> {
     *crate::battery::CURRENT.lock().unwrap()
 }
@@ -732,6 +771,7 @@ pub fn swap_confirm_set(state: St, value: bool) -> Result<(), String> {
 pub fn power(app: AppHandle, action: String) -> Result<(), String> {
     match action.as_str() {
         "exit" => {
+            crate::borderless::set_taskbar_hidden(false);
             app.exit(0);
             Ok(())
         }

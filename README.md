@@ -65,6 +65,24 @@ O início acontece depois do login, então o PC precisa entrar no Windows sem pe
 
 Durante o jogo o Sofa fica atrás dele, então o desktop não aparece ao abrir nem ao fechar um jogo.
 
+Com mais de um monitor, escolha em Configurações → **Monitor do Sofa** onde ele abre. O padrão é o monitor principal do Windows. O modo desktop e os avisos acompanham a escolha. Se o monitor escolhido for desconectado, o Sofa usa o principal. Os jogos costumam abrir no monitor principal do Windows, e o Sofa não controla isso, a não ser nos jogos com **Tela cheia sem borda**, que ele leva para o monitor escolhido. Para que tudo abra na TV, o mais simples é deixar a TV como monitor principal nas configurações de tela do Windows.
+
+## Jogar na TV pelo Moonlight
+
+Sem um PC na sala, dá para usar o Sofa na TV transmitindo de outro PC com o [Sunshine](https://app.lizardbyte.dev) e o Moonlight (no Xbox, numa TV Android, no celular...):
+
+1. Instale o Sunshine no PC dos jogos e pareie o Moonlight com ele, pelo painel do Sunshine.
+2. No Sofa, vá em Configurações → **Adicionar o Sofa ao Moonlight**. O Windows pede permissão de administrador uma vez. O Sofa entra na lista do Sunshine com uma capa própria, e o Sunshine reinicia (uma transmissão aberta cai). Uma cópia da lista original fica em `config\apps.json.antes-do-sofa`, na pasta do Sunshine.
+3. No Moonlight, escolha o PC e abra **Sofa**. Ele aparece em tela cheia, mesmo que já estivesse aberto atrás de outra janela.
+
+Fechar o Sofa (pelo menu de energia, por exemplo) encerra a transmissão: o aparelho volta para a lista do Moonlight em vez de mostrar o desktop do PC. Para isso o Sunshine abre uma cópia pequena do Sofa (`sofa.exe --moonlight`) que só espera o Sofa fechar. Sair do app pelo Moonlight encerra a transmissão, mas deixa o Sofa aberto no PC. Quem cadastrou o Sofa no Sunshine antes desta versão precisa cadastrar de novo em Configurações.
+
+O controle chega ao PC como um controle virtual do Sunshine e funciona como qualquer outro. O menu continua no L3 + R3, porque o botão Xbox fica com o aparelho. O controle virtual não informa a bateria do controle real, então o ícone de bateria pode não aparecer. O PC transmite na resolução do próprio monitor.
+
+Alguns jogos ficam com a imagem preta no Moonlight quando estão em tela cheia (o som chega, e o monitor do PC mostra o jogo). Isso acontece com jogos em Vulkan que desenham direto no monitor, como o Wind Waker HD neste PC com placa Intel Arc. Para eles: deixe o jogo em modo janela nas opções dele e, nos detalhes do jogo no Sofa, ligue **Tela cheia sem borda**. Durante o jogo, o Sofa tira a borda da janela e estica até a tela, deixando de fora só a última linha de pixels, para o Windows não tratar o jogo como tela cheia de novo. Enquanto o jogo está aberto, o Sofa esconde a barra de tarefas. Ela volta quando o jogo fecha, no modo desktop, ao fechar o Sofa e, se o Sofa fechar de repente, na próxima vez que ele abrir. Em jogos de Wii U, a janela da tela do GamePad fica de fora.
+
+Abrir o `sofa.exe` com o Sofa já aberto, por qualquer caminho, traz o launcher para a frente, a não ser que um jogo ou o modo desktop esteja na tela.
+
 ## Importar jogos por SSD ou pendrive
 
 Prepare os jogos em outro computador, em uma pasta `sofa\dump` na raiz do disco:

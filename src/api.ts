@@ -14,6 +14,8 @@ export interface GameView {
   last_played: number;
   playtime_secs: number;
   launch_file: string | null;
+  /** Tira a borda da janela do jogo e estica até a tela. */
+  borderless: boolean;
   update: UpdateState | null;
 }
 
@@ -67,6 +69,21 @@ export interface InstallTargets {
   /** Tamanho aproximado pela loja; nulo quando ela não informa. */
   size: number | null;
   targets: SteamLibrary[];
+}
+
+/** Um monitor conectado, para escolher onde o Sofa abre. */
+export interface MonitorInfo {
+  name: string;
+  label: string;
+  width: number;
+  height: number;
+  primary: boolean;
+}
+
+/** Sunshine (servidor do Moonlight) neste PC e se o Sofa está na lista dele. */
+export interface SunshineStatus {
+  installed: boolean;
+  registered: boolean;
 }
 
 export interface Download {

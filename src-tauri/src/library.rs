@@ -17,6 +17,8 @@ pub struct Meta {
     pub hero: Option<String>,
     /// Arquivo passado ao jogo ao iniciar, como a ISO de um decomp.
     pub launch_file: Option<String>,
+    /// Tira a borda da janela do jogo e estica até a tela (veja `borderless.rs`).
+    pub borderless: bool,
 }
 
 #[derive(Clone, Default, Serialize, Deserialize)]
@@ -30,6 +32,8 @@ pub struct Store {
     /// Para onde os jogos importados são copiados. Vazio usa o padrão.
     pub library_dir: Option<String>,
     pub swap_confirm: bool,
+    /// Monitor onde o Sofa abre (`\\.\DISPLAY2`). Vazio usa o principal do Windows.
+    pub monitor: Option<String>,
     pub emulators: Vec<Emulator>,
     pub manual: Vec<ManualGame>,
     pub meta: HashMap<String, Meta>,
@@ -49,6 +53,7 @@ pub struct GameView {
     pub last_played: u64,
     pub playtime_secs: u64,
     pub launch_file: Option<String>,
+    pub borderless: bool,
     /// Estado de atualização da Steam ou versão da Epic, lido na última varredura.
     pub update: Option<crate::providers::UpdateState>,
 }
@@ -135,6 +140,7 @@ impl Store {
             last_played: meta.last_played,
             playtime_secs: meta.playtime_secs,
             launch_file: meta.launch_file,
+            borderless: meta.borderless,
             update: game.update.clone(),
         }
     }

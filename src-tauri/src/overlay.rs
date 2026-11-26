@@ -5,7 +5,7 @@ use crate::input::logic::Action;
 use crate::input::{self, Mode};
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
-use tauri::{AppHandle, Emitter, LogicalSize, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::Input::KeyboardAndMouse::*;
 use windows::Win32::UI::WindowsAndMessaging::{GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE, WS_EX_NOACTIVATE};
@@ -153,12 +153,11 @@ pub fn on_action(app: &AppHandle, action: Action) {
 pub fn set_keyboard(app: &AppHandle, open: bool) {
     KEYBOARD_OPEN.store(open, Ordering::Relaxed);
     let Some(window) = app.get_webview_window(LABEL) else { return };
-    if let Ok(Some(monitor)) = window.primary_monitor() {
-        let scale = monitor.scale_factor();
-        let size = monitor.size().to_logical::<f64>(scale);
-        let height = if open { size.height * 0.5 } else { size.height * 0.07 };
-        let _ = window.set_size(LogicalSize::new(size.width, height));
-        let _ = window.set_position(tauri::LogicalPosition::new(0.0, size.height - height));
+    if let Some(monitor) = crate::display::chosen(app) {
+        let (size, pos) = (monitor.size(), monitor.position());
+        let height = (size.height as f64 * if open { 0.5 } else { 0.07 }) as u32;
+        let _ = window.set_size(tauri::PhysicalSize::new(size.width, height));
+        let _ = window.set_position(tauri::PhysicalPosition::new(pos.x, pos.y + (size.height - height) as i32));
     }
     // Com o teclado fechado, cliques atravessam a barra de ajuda.
     let _ = window.set_ignore_cursor_events(!open);

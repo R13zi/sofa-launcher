@@ -20,7 +20,7 @@ const games = [
   ["manual:dusklight", "Dusklight", "manual"],
 ].map(([id, title, source], i) => ({
   id, title, source, art: null, hero: (i < 3 ? TEST_BANNER : null) as string | null, custom_hero: null as string | null, favorite: i === 0, hidden: false,
-  last_played: i < 3 ? 1000 - i : 0, playtime_secs: i === 0 ? 5400 : 0, launch_file: null as string | null,
+  last_played: i < 3 ? 1000 - i : 0, playtime_secs: i === 0 ? 5400 : 0, launch_file: null as string | null, borderless: false,
   update: (source === "steam" ? { state: i === 1 ? "pending" : "up_to_date" } : source === "epic" ? { state: "version", version: "1.0.4" } : null) as UpdateState | null,
 }));
 
@@ -53,6 +53,8 @@ const mockImportPlans = [{
   ],
 }];
 let importCancelled = false;
+let mockSunshine = false;
+let mockMonitor: string | null = null;
 let mockSteamKey = false;
 let mockClipboard = "";
 const mockVolume = { level: 62, muted: false };
@@ -127,6 +129,11 @@ export function mockInvoke(command: string, args: Record<string, unknown>): unkn
       }
       return null;
     }
+    case "set_borderless": {
+      const game = games.find((g) => g.id === args.id);
+      if (game) game.borderless = args.value as boolean;
+      return null;
+    }
     case "set_launch_file": {
       const game = games.find((g) => g.id === args.id);
       if (game) game.launch_file = (args.path as string | null) ?? null;
@@ -151,6 +158,17 @@ export function mockInvoke(command: string, args: Record<string, unknown>): unkn
       { name: "Mario 64", path: "C:\\Games\\Sofa\\iso\\Mario 64", size: GB, file_count: 3200, main_files: [] },
     ];
     case "controller_battery": return { state: "battery", percent: 64 };
+    case "monitors_list": return [
+      { name: String.raw`\\.\DISPLAY1`, label: "Monitor 1 · 1920×1200", width: 1920, height: 1200, primary: true },
+      { name: String.raw`\\.\DISPLAY2`, label: "Monitor 2 · Lenovo HDR Monitor · 1920×1080", width: 1920, height: 1080, primary: false },
+    ];
+    case "monitor_get": return mockMonitor;
+    case "monitor_set": mockMonitor = (args.name as string | null) ?? null; return null;
+    case "sunshine_status": return { installed: true, registered: mockSunshine };
+    case "sunshine_register": return new Promise((resolve) => setTimeout(() => {
+      mockSunshine = args.register as boolean;
+      resolve({ installed: true, registered: mockSunshine });
+    }, 1500));
     case "storage_overview": return [
       {
         root: "C:\\", total: 476 * GB, free: 92 * GB,
@@ -209,7 +227,7 @@ export function mockInvoke(command: string, args: Record<string, unknown>): unkn
       return new Promise((resolve) => setTimeout(() => {
         games.push({
           id: `steam:${args.appid}`, title: args.name as string, source: "steam", art: null, hero: null, custom_hero: null, favorite: false,
-          hidden: false, last_played: 0, playtime_secs: 0, launch_file: null, update: { state: "installing", done: GB, total: 8 * GB },
+          hidden: false, last_played: 0, playtime_secs: 0, launch_file: null, borderless: false, update: { state: "installing", done: GB, total: 8 * GB },
         });
         mockEmit("library-changed");
         resolve(null);
